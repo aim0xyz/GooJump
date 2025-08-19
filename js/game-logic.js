@@ -1,6 +1,6 @@
 // js/game-logic.js
 
-// Initialize Game State
+// Initialize Game State with UI elements as null initially
 window.gameState = {
     canvas: document.getElementById('gameCanvas'),
     ctx: null, // Context will be set on DOMContentLoaded
@@ -43,14 +43,14 @@ window.gameState = {
     currentRevivesUsed: 0,
     maxRevivesPerGame: 1, // Only 1 revive per game session
 
-    // UI elements (references set in DOMContentLoaded)
-    scoreDisplay: document.getElementById("scoreDisplay"),
-    coinsDisplay: document.getElementById("coinsDisplay"),
-    heartsDisplay: document.getElementById("heartsDisplay"),
-    chaosTimerDisplay: document.getElementById("chaosTimerDisplay"),
-    chaosAlert: document.getElementById("chaosAlert"), // Assuming you have a div for this
-    leftZone: document.getElementById("leftTouchZone"),
-    rightZone: document.getElementById("rightTouchZone"),
+    // UI elements (initially null, assigned in DOMContentLoaded)
+    scoreDisplay: null,
+    coinsDisplay: null,
+    heartsDisplay: null,
+    chaosTimerDisplay: null,
+    chaosAlert: null,
+    leftZone: null,
+    rightZone: null,
 
     // Firebase refs
     currentUserDataRef: null,
@@ -75,12 +75,24 @@ window.gameState = {
     coinGenerationChance: 0.6 // 60% chance for a coin to spawn on a platform
 };
 
-// --- Initial Canvas Setup ---
+// --- Initial Canvas and UI Setup ---
 document.addEventListener('DOMContentLoaded', () => {
+    // Canvas setup
     window.gameState.ctx = window.gameState.canvas.getContext('2d');
     window.gameState.canvas.width = 400; // Example width
     window.gameState.canvas.height = 500; // Example height
     console.log("Canvas context initialized. Canvas dimensions:", window.gameState.canvas.width, "x", window.gameState.canvas.height);
+
+    // Assign UI element references after DOM is ready
+    window.gameState.scoreDisplay = document.getElementById("scoreDisplay");
+    window.gameState.coinsDisplay = document.getElementById("coinsDisplay");
+    window.gameState.heartsDisplay = document.getElementById("heartsDisplay");
+    window.gameState.chaosTimerDisplay = document.getElementById("chaosTimerDisplay");
+    window.gameState.chaosAlert = document.getElementById("chaosAlert");
+    window.gameState.leftZone = document.getElementById("leftTouchZone");
+    window.gameState.rightZone = document.getElementById("rightTouchZone");
+
+    console.log("UI elements assigned to gameState.");
 });
 
 // --- Core Game Loop ---
@@ -430,27 +442,35 @@ window.getCameraThreshold = function() {
 
 window.updateUI = function() {
     // Update Score/Height
-    window.gameState.scoreDisplay.textContent = `Height: ${window.heightMeters()}m`;
+    if (window.gameState.scoreDisplay) { // Added check
+        window.gameState.scoreDisplay.textContent = `Height: ${window.heightMeters()}m`;
+    }
     // Update Coins (current round + total)
-    window.gameState.coinsDisplay.textContent = `Coins: ${window.gameState.currentRoundCoins} (+${window.gameState.totalCoins})`;
+    if (window.gameState.coinsDisplay) { // Added check
+        window.gameState.coinsDisplay.textContent = `Coins: ${window.gameState.currentRoundCoins} (+${window.gameState.totalCoins})`;
+    }
     // Update Hearts
-    window.gameState.heartsDisplay.textContent = `Hearts: ${window.gameState.hearts}`;
+    if (window.gameState.heartsDisplay) { // Added check
+        window.gameState.heartsDisplay.textContent = `Hearts: ${window.gameState.hearts}`;
+    }
 
     // Update Chaos Timer (if active)
-    if (window.gameState.chaosMode !== 'normal') {
-        const timeRemaining = Math.max(0, window.gameState.chaosDuration - (window.gameState.gameTimeMs - window.gameState.lastChaosTime));
-        window.gameState.chaosTimerDisplay.textContent = `Chaos: ${Math.ceil(timeRemaining / 1000)}s`;
-        window.gameState.chaosTimerDisplay.style.color = 'red';
-        window.gameState.chaosAlert.style.display = 'block';
-        window.gameState.chaosAlert.textContent = `Chaos Mode: ${window.gameState.chaosMode.toUpperCase()}!`;
-    } else {
-        window.gameState.chaosTimerDisplay.textContent = '';
-        window.gameState.chaosTimerDisplay.style.color = '';
-        window.gameState.chaosAlert.style.display = 'none';
+    if (window.gameState.chaosTimerDisplay && window.gameState.chaosAlert) { // Added check
+        if (window.gameState.chaosMode !== 'normal') {
+            const timeRemaining = Math.max(0, window.gameState.chaosDuration - (window.gameState.gameTimeMs - window.gameState.lastChaosTime));
+            window.gameState.chaosTimerDisplay.textContent = `Chaos: ${Math.ceil(timeRemaining / 1000)}s`;
+            window.gameState.chaosTimerDisplay.style.color = 'red';
+            window.gameState.chaosAlert.style.display = 'block';
+            window.gameState.chaosAlert.textContent = `Chaos Mode: ${window.gameState.chaosMode.toUpperCase()}!`;
+        } else {
+            window.gameState.chaosTimerDisplay.textContent = '';
+            window.gameState.chaosTimerDisplay.style.color = '';
+            window.gameState.chaosAlert.style.display = 'none';
+        }
     }
 
     // Update shop screen if visible
-    if (window.shopScreen.style.display === 'flex') {
+    if (window.shopScreen && window.shopScreen.style.display === 'flex' && window.shopCoinsDisplay) { // Added checks
         window.shopCoinsDisplay.textContent = window.gameState.totalCoins;
     }
 };

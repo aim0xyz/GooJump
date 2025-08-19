@@ -1,5 +1,82 @@
 // js/ui-handlers.js
 
+// Declare variables, assign in DOMContentLoaded
+let loginRegisterScreen;
+let emailInput;
+let passwordInput;
+let loginButton;
+let registerButton;
+let googleSignInButton;
+let authMessage;
+
+let gameMenuScreen;
+let startButton;
+let shopButton;
+let leaderboardButton;
+let logoutButton;
+let welcomeMessage;
+
+let gameOverScreen;
+let finalHeightDisplay;
+let reviveMessage;
+let reviveButton;
+let gameOverMenuButton;
+
+let shopScreen;
+let shopCoinsDisplay;
+let buyHeartButton;
+let shopBackButton;
+
+let leaderboardScreen;
+let leaderboardBackButton;
+
+// IMPORTANT: Move all document.getElementById calls inside this listener
+document.addEventListener('DOMContentLoaded', () => {
+    console.log("DOM Content Loaded. Setting up UI element references in ui-handlers.js.");
+
+    // Assign UI element references here:
+    loginRegisterScreen = document.getElementById("loginRegisterScreen");
+    emailInput = document.getElementById("emailInput");
+    passwordInput = document.getElementById("passwordInput");
+    loginButton = document.getElementById("loginButton");
+    registerButton = document.getElementById("registerButton");
+    googleSignInButton = document.getElementById("googleSignInButton");
+    authMessage = document.getElementById("authMessage");
+
+    gameMenuScreen = document.getElementById("gameMenuScreen");
+    startButton = document.getElementById("startButton");
+    shopButton = document.getElementById("shopButton");
+    leaderboardButton = document.getElementById("leaderboardButton");
+    logoutButton = document.getElementById("logoutButton");
+    welcomeMessage = document.getElementById("welcomeMessage");
+
+    gameOverScreen = document.getElementById("gameOverScreen");
+    finalHeightDisplay = document.getElementById("finalHeightDisplay");
+    reviveMessage = document.getElementById("reviveMessage");
+    reviveButton = document.getElementById("reviveButton");
+    gameOverMenuButton = document.getElementById("gameOverMenuButton");
+
+    shopScreen = document.getElementById("shopScreen");
+    shopCoinsDisplay = document.getElementById("shopCoinsDisplay");
+    buyHeartButton = document.getElementById("buyHeartButton");
+    shopBackButton = document.getElementById("shopBackButton");
+
+    leaderboardScreen = document.getElementById("leaderboardScreen");
+    leaderboardBackButton = document.getElementById("leaderboardBackButton");
+
+    // All event listeners that rely on these elements should also be inside this DOMContentLoaded
+    // For brevity, I'll only show the listeners section for this part.
+    // ... (rest of the listeners section from ui-handlers.js should start here) ...
+
+    console.log("UI element references and initial event listeners set up in ui-handlers.js.");
+});
+
+// The rest of your functions (hideAllScreens, showLoginRegisterScreen, loginUser, etc.)
+// can remain outside the DOMContentLoaded, as long as they only use the variables
+// *after* they've been assigned in the DOMContentLoaded block.
+
+// ... rest of ui-handlers.js functions ...
+
 // Get UI elements
 const loginRegisterScreen = document.getElementById("loginRegisterScreen");
 const emailInput = document.getElementById("emailInput");
@@ -14,7 +91,6 @@ const startButton = document.getElementById("startButton");
 const shopButton = document.getElementById("shopButton");
 const leaderboardButton = document.getElementById("leaderboardButton");
 const logoutButton = document.getElementById("logoutButton");
-const welcomeMessage = document.getElementById("welcomeMessage"); // Added this to ui-handlers for direct use
 
 const gameOverScreen = document.getElementById("gameOverScreen");
 const finalHeightDisplay = document.getElementById("finalHeightDisplay");
@@ -32,25 +108,22 @@ const leaderboardBackButton = document.getElementById("leaderboardBackButton");
 
 // --- UI Navigation Functions ---
 window.hideAllScreens = function() {
-    console.log("Hiding all screens...");
     loginRegisterScreen.style.display = "none";
     gameMenuScreen.style.display = "none";
     gameOverScreen.style.display = "none";
     shopScreen.style.display = "none";
     leaderboardScreen.style.display = "none";
 
-    // Also hide game-specific UI elements
     window.gameState.scoreDisplay.style.display = "none";
     window.gameState.coinsDisplay.style.display = "none";
     window.gameState.heartsDisplay.style.display = "none";
     window.gameState.chaosTimerDisplay.style.display = "none";
-    window.gameState.chaosAlert.style.display = "none"; // Assuming you have this
+    window.gameState.chaosAlert.style.display = "none";
     window.gameState.leftZone.style.display = "none";
     window.gameState.rightZone.style.display = "none";
 };
 
 window.showLoginRegisterScreen = function(message = "Please login or register to play.") {
-    console.log("Showing login/register screen with message:", message);
     window.hideAllScreens();
     loginRegisterScreen.style.display = "flex";
     authMessage.textContent = message;
@@ -59,29 +132,25 @@ window.showLoginRegisterScreen = function(message = "Please login or register to
 };
 
 window.showGameMenuScreen = function() {
-    console.log("Showing game menu screen.");
     window.hideAllScreens();
     gameMenuScreen.style.display = "flex";
     window.updateUI(); // Update coins and hearts displayed on menu
 };
 
 window.showShopScreen = function() {
-    console.log("Showing shop screen.");
     window.hideAllScreens();
     shopScreen.style.display = "flex";
     shopCoinsDisplay.textContent = window.gameState.totalCoins; // Update shop-specific coin display
 };
 
 window.showLeaderboardScreen = async function() {
-    console.log("Showing leaderboard screen.");
     window.hideAllScreens();
     leaderboardScreen.style.display = "flex";
-    document.getElementById("leaderboardList").innerHTML = '<li>Loading leaderboard...</li>'; // Show loading message
+    document.getElementById("leaderboardList").innerHTML = '<li>Loading leaderboard...</li>';
     await window.loadLeaderboard();
 };
 
 window.showGameUI = function() {
-    console.log("Showing game UI.");
     window.hideAllScreens();
     window.gameState.scoreDisplay.style.display = "block";
     window.gameState.coinsDisplay.style.display = "block";
@@ -95,69 +164,59 @@ window.showGameUI = function() {
 async function registerUser() {
     const email = emailInput.value;
     const password = passwordInput.value;
-    console.log("Attempting registration for email:", email);
     try {
         const userCredential = await window.auth.createUserWithEmailAndPassword(email, password);
-        console.log("Firebase createUserWithEmailAndPassword successful. User UID:", userCredential.user.uid);
+        const user = userCredential.user;
+        // Initialize user data in Firestore (handled by data-management.js onAuthStateChanged)
         authMessage.textContent = "Registration successful! Logging in...";
-        // Initial user data creation will be handled by onAuthStateChanged in data-management.js
     } catch (error) {
-        console.error("Registration error:", error); // Log the actual error
         authMessage.textContent = `Registration failed: ${error.message}`;
+        console.error("Registration error:", error);
     }
 }
 
 async function loginUser() {
     const email = emailInput.value;
     const password = passwordInput.value;
-    console.log("Attempting login for email:", email);
     try {
         await window.auth.signInWithEmailAndPassword(email, password);
-        console.log("Firebase signInWithEmailAndPassword successful.");
         authMessage.textContent = "Login successful!";
-        // onAuthStateChanged in data-management.js will handle screen transition
     } catch (error) {
-        console.error("Login error:", error); // Log the actual error
         authMessage.textContent = `Login failed: ${error.message}`;
+        console.error("Login error:", error);
     }
 }
 
 async function signInWithGoogle() {
-    console.log("Attempting Google Sign-In.");
     try {
         await window.auth.signInWithPopup(window.googleProvider);
-        console.log("Google Sign-In successful.");
+        // User data creation handled by data-management.js onAuthStateChanged
         authMessage.textContent = "Google Sign-In successful!";
-        // User data creation and screen transition handled by onAuthStateChanged
     } catch (error) {
-        console.error("Google Sign-In error:", error); // Log the actual error
         authMessage.textContent = `Google Sign-In failed: ${error.message}`;
+        console.error("Google Sign-In error:", error);
     }
 }
 
 async function signOutUser() {
-    console.log("Attempting to sign out user.");
     try {
         await window.auth.signOut();
-        console.log("Firebase signOut successful.");
         authMessage.textContent = "Logged out.";
-        // Reset local game state variables
+        // Reset local game state variables (handled by data-management.js onAuthStateChanged)
         window.gameState.totalCoins = 0;
         window.gameState.hearts = 1;
         window.gameState.maxHeight = 0;
         window.gameState.currentRoundCoins = 0;
         window.showLoginRegisterScreen("You have been logged out.");
     } catch (error) {
-        console.error("Logout error:", error); // Log the actual error
+        console.error("Logout error:", error);
         alert("Error logging out: " + error.message);
     }
 }
 
 // --- Game Flow UI Handlers ---
 window.startGame = function() {
-    console.log("startGame called.");
     if (!window.auth.currentUser) {
-        console.warn("Attempted to start game without being logged in.");
         window.showLoginRegisterScreen("Please login to start a game.");
         return;
     }
@@ -168,33 +227,25 @@ window.startGame = function() {
     window.gameState.currentRevivesUsed = 0;
     window.gameState.currentRoundCoins = 0;
 
-    // Apply initial chaos mode (e.g., "normal")
     window.applyChaosMode("normal");
 
-    // Reset player position and velocity
     window.gameState.player.x = (window.gameState.canvas.width - window.gameState.player.width) / 2;
-    window.gameState.player.y = 440; // Or whatever your starting Y should be
+    window.gameState.player.y = 440;
     window.gameState.player.dx = 0;
     window.gameState.player.dy = 0;
     window.gameState.player.squishT = 0;
 
-    // Clear game elements
     window.gameState.gooSplats.length = 0;
     window.gameState.gameCoins.length = 0;
-
-    // Crucially, create new platforms for the game round
     window.createPlatforms();
 
-    // Show in-game UI and update displays
     window.showGameUI();
     window.updateUI();
 
-    // Start the game loop
     requestAnimationFrame(window.gameLoop);
 };
 
 window.resumeGame = function() {
-    console.log("resumeGame called.");
     window.gameState.gameRunning = true;
     window.showGameUI();
     window.updateUI();
@@ -203,7 +254,6 @@ window.resumeGame = function() {
 };
 
 window.endGame = function() {
-    console.log("endGame called.");
     window.gameState.gameRunning = false;
 
     // Save state for potential revive (same height, same world)
@@ -215,8 +265,8 @@ window.endGame = function() {
             eyeLeft: window.gameState.player.eyeLeft, eyeRight: window.gameState.player.eyeRight
         },
         worldOffsetY: window.gameState.worldOffsetY,
-        platforms: window.gameState.platforms.map(p => ({...p})), // Clone platforms
-        gameCoins: window.gameState.gameCoins.map(c => ({...c})) // Clone coins
+        platforms: window.gameState.platforms.map(p => ({...p})),
+        gameCoins: window.gameState.gameCoins.map(c => ({...c}))
     };
 
     window.hideAllScreens();
@@ -243,11 +293,7 @@ window.endGame = function() {
 };
 
 window.reviveGame = function() {
-    console.log("reviveGame called.");
-    if (!window.gameState.lastDeathState || window.gameState.currentRevivesUsed >= window.gameState.maxRevivesPerGame || window.gameState.hearts <= 0) {
-        console.warn("Revive conditions not met.");
-        return;
-    }
+    if (!window.gameState.lastDeathState || window.gameState.currentRevivesUsed >= window.gameState.maxRevivesPerGame || window.gameState.hearts <= 0) return;
 
     // Consume heart and mark revive used
     window.gameState.hearts--;
@@ -259,19 +305,18 @@ window.reviveGame = function() {
     window.gameState.gameCoins = window.gameState.lastDeathState.gameCoins.map(c => ({...c})).filter(c => !c.collected);
 
     // Safe on-screen respawn at same height:
-    const safeY = window.getCameraThreshold(); // Player spawns just above the camera threshold
+    const safeY = window.getCameraThreshold();
     window.gameState.player.y = safeY;
-    window.gameState.player.dy = window.gameState.player.jumpPower * 0.6; // Give a small initial jump
-    window.gameState.player.dx = Math.max(-2, Math.min(2, window.gameState.lastDeathState.player.dx || 0)); // Retain some horizontal velocity
+    window.gameState.player.dy = window.gameState.player.jumpPower * 0.6;
+    window.gameState.player.dx = Math.max(-2, Math.min(2, window.gameState.lastDeathState.player.dx || 0));
 
-    window.gameState.gooSplats.length = 0; // Clear splats on revive
-    window.gameState.lastDeathState = null; // Clear saved state
+    window.gameState.gooSplats.length = 0;
+    window.gameState.lastDeathState = null;
 
     window.resumeGame();
 };
 
 window.buyHeart = function() {
-    console.log("buyHeart called.");
     const item = window.gameState.shopItems.heart;
     if (window.gameState.totalCoins >= item.cost) {
         window.gameState.totalCoins -= item.cost;
@@ -286,7 +331,6 @@ window.buyHeart = function() {
 };
 
 window.showGameMenuScreenAndTransferCoins = async function() {
-    console.log("showGameMenuScreenAndTransferCoins called.");
     // Only when leaving game to menu do we bank the run coins
     window.gameState.totalCoins += window.gameState.currentRoundCoins;
     window.gameState.currentRoundCoins = 0;
@@ -297,7 +341,6 @@ window.showGameMenuScreenAndTransferCoins = async function() {
 
 // --- Event Listeners ---
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("DOM Content Loaded. Setting up event listeners.");
     // Auth Buttons
     loginButton.addEventListener('click', loginUser);
     registerButton.addEventListener('click', registerUser);
@@ -306,7 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Game Menu Buttons
     startButton.addEventListener('click', window.startGame);
-    startButton.addEventListener('touchstart', (e) => { e.preventDefault(); window.startGame(); }); // Touch event for mobile
+    startButton.addEventListener('touchstart', (e) => { e.preventDefault(); window.startGame(); });
 
     shopButton.addEventListener('click', window.showShopScreen);
     shopButton.addEventListener('touchstart', (e) => { e.preventDefault(); window.showShopScreen(); });
@@ -332,14 +375,14 @@ document.addEventListener('DOMContentLoaded', () => {
     leaderboardBackButton.addEventListener('click', window.showGameMenuScreen);
     leaderboardBackButton.addEventListener('touchstart', (e) => { e.preventDefault(); window.showGameMenuScreen(); });
 
-    // Game Input (Touch and Keyboard)
+    // Game Input
     window.gameState.leftZone.addEventListener('touchstart', (e) => { e.preventDefault(); window.gameState.inputLeft = true; });
     window.gameState.leftZone.addEventListener('touchend',   (e) => { e.preventDefault(); window.gameState.inputLeft = false; });
     window.gameState.rightZone.addEventListener('touchstart',(e) => { e.preventDefault(); window.gameState.inputRight = true; });
     window.gameState.rightZone.addEventListener('touchend',  (e) => { e.preventDefault(); window.gameState.inputRight = false; });
 
     document.addEventListener('keydown', (e) => {
-        if (!window.gameState.gameRunning) return; // Only process input if game is running
+        if (!window.gameState.gameRunning) return;
         if (e.key === 'ArrowLeft' || e.key === 'a') window.gameState.inputLeft = true;
         if (e.key === 'ArrowRight' || e.key === 'd') window.gameState.inputRight = true;
     });
