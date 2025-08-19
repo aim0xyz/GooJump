@@ -1,22 +1,23 @@
 // js/game-logic.js
 
 // The window.gameState object is already initialized in game-state.js.
-// We will assign its properties here within DOMContentLoaded.
+// We will assign its DOM element properties here within DOMContentLoaded.
 
 document.addEventListener('DOMContentLoaded', () => {
     // Canvas setup
     window.gameState.canvas = document.getElementById('gameCanvas');
     window.gameState.ctx = window.gameState.canvas.getContext('2d');
-    window.gameState.canvas.width = 400; // Example width
-    window.gameState.canvas.height = 600; // Match HTML canvas height
+    // Ensure canvas dimensions match HTML (assuming 400x600 from index.html)
+    window.gameState.canvas.width = 400;
+    window.gameState.canvas.height = 600;
     console.log("Canvas context initialized. Canvas dimensions:", window.gameState.canvas.width, "x", window.gameState.canvas.height);
 
     // Assign UI element references after DOM is ready
-    // CORRECTED IDs:
+    // CORRECTED IDs to match index.html for score, chaosTimer, leftZone, rightZone:
     window.gameState.scoreDisplay = document.getElementById("score");
     window.gameState.coinsDisplay = document.getElementById("coinsDisplay");
     window.gameState.heartsDisplay = document.getElementById("heartsDisplay");
-    window.gameState.chaosTimerDisplay = document.getElementById("chaosTimer");
+    window.gameState.chaosTimerDisplay = document.getElementById("chaosTimer"); // Corrected ID
     window.gameState.chaosAlert = document.getElementById("chaosAlert");
     window.gameState.leftZone = document.getElementById("leftZone"); // Corrected ID
     window.gameState.rightZone = document.getElementById("rightZone"); // Corrected ID
@@ -60,7 +61,6 @@ window.updateGame = function(dt) {
     } else if (window.gameState.player.x > window.gameState.canvas.width) {
         window.gameState.player.x = -window.gameState.player.width;
     }
-
 
     // Apply gravity
     window.gameState.player.dy += window.gameState.player.gravity;
@@ -159,7 +159,7 @@ window.updateGame = function(dt) {
         }, window.gameState.chaosDuration);
     }
 
-    // Update UI (score, coins, hearts)
+    // Update UI (score, coins, hearts) - Now calls the updateUI defined in game-state.js
     window.updateUI();
 };
 
@@ -207,7 +207,7 @@ window.drawGame = function() {
                 window.gameState.ctx.fill();
             }
         }
-    });
+    }
 
     // Draw Coins
     window.gameState.gameCoins.forEach(c => {
@@ -273,7 +273,7 @@ window.createPlatforms = function() {
         const platformX = Math.random() * (window.gameState.canvas.width - platformWidth);
 
         let type = 'normal';
-        let color = '#333333'; // Default normal platform color
+        // color will be set by getPlatformColor
 
         // Determine platform type based on chances
         const r = Math.random();
@@ -283,7 +283,7 @@ window.createPlatforms = function() {
             type = 'bouncy';
         }
 
-        color = window.getPlatformColor(type); // Use global getPlatformColor
+        const color = window.getPlatformColor(type); // Use global getPlatformColor
 
         const newPlatform = {
             x: platformX,
@@ -326,7 +326,7 @@ window.generateNewPlatformsAndCoins = function(deltaY) {
         const platformX = Math.random() * (window.gameState.canvas.width - platformWidth);
 
         let type = 'normal';
-        let color = '#333333';
+        // color will be set by getPlatformColor
 
         const r = Math.random();
         if (r < window.gameState.spikePlatformChance) {
@@ -335,7 +335,7 @@ window.generateNewPlatformsAndCoins = function(deltaY) {
             type = 'bouncy';
         }
 
-        color = window.getPlatformColor(type);
+        const color = window.getPlatformColor(type);
 
         const newPlatform = {
             x: platformX,
@@ -355,7 +355,6 @@ window.generateNewPlatformsAndCoins = function(deltaY) {
             });
         }
     }
-    // console.log("Generated new platforms. Total:", window.gameState.platforms.length);
 };
 
 // --- Helper Functions ---
@@ -363,60 +362,21 @@ window.generateNewPlatformsAndCoins = function(deltaY) {
 
 window.getCameraThreshold = function() {
     // Player should be snapped to this Y position as the camera scrolls
-    return window.gameState.canvas.height * 0.4; // Example: 40% up from the bottom
+    // Make sure window.gameState.canvas.height is defined (it should be after DOMContentLoaded)
+    return window.gameState.canvas ? window.gameState.canvas.height * 0.4 : 200; // Fallback if canvas height not ready
 };
 
-window.updateUI = function() {
-    // Update Score/Height
-    if (window.gameState.scoreDisplay) {
-        window.gameState.scoreDisplay.textContent = `Height: ${window.heightMeters()}m`;
-    }
-    // Update Coins (current round + total) - Format updated for consistency with original game-logic
-    if (window.gameState.coinsDisplay) {
-        window.gameState.coinsDisplay.textContent = `Coins: ${window.gameState.currentRoundCoins} (+${window.gameState.totalCoins})`;
-    }
-    // Update Hearts
-    if (window.gameState.heartsDisplay) {
-        window.gameState.heartsDisplay.textContent = `Hearts: ❤️ ${window.gameState.hearts}`; // Added heart emoji
-    }
-
-    // Update Chaos Timer (if active)
-    if (window.gameState.chaosTimerDisplay && window.gameState.chaosAlert && window.gameState.canvas) {
-        if (window.gameState.chaosMode !== 'normal') {
-            const timeRemaining = Math.max(0, window.gameState.chaosDuration - (window.gameState.gameTimeMs - window.gameState.lastChaosTime));
-            window.gameState.chaosTimerDisplay.textContent = `Chaos: ${Math.ceil(timeRemaining / 1000)}s`;
-            window.gameState.chaosTimerDisplay.style.color = 'red';
-            window.gameState.chaosAlert.style.display = 'block';
-            window.gameState.chaosAlert.textContent = `${window.gameState.chaosMode.toUpperCase()}!`;
-            window.gameState.canvas.classList.add('chaos-flash'); // Apply visual effect
-        } else {
-            const timeToNextChaos = Math.max(0, window.gameState.chaosInterval - (window.gameState.gameTimeMs - window.gameState.lastChaosTime));
-            window.gameState.chaosTimerDisplay.textContent = `Next Chaos: ${Math.ceil(timeToNextChaos / 1000)}s`;
-            window.gameState.chaosTimerDisplay.style.color = '';
-            window.gameState.chaosAlert.style.display = 'none';
-            window.gameState.canvas.classList.remove('chaos-flash'); // Remove visual effect
-        }
-    }
-
-    // Update shop screen if visible
-    // These specific UI elements are declared in ui-handlers.js, not game-logic.js's gameState.
-    // So, rely on ui-handlers.js's global `shopScreen` and `shopCoinsDisplay` variables.
-    // It's safer to have ui-handlers.js explicitly call its own update for shop display.
-    // However, if `shopScreen` and `shopCoinsDisplay` are made global by ui-handlers.js
-    // and correctly assigned, this check would still work.
-    if (window.shopScreen && window.shopScreen.style.display === 'flex' && window.shopCoinsDisplay) {
-        window.shopCoinsDisplay.textContent = window.gameState.totalCoins;
-    }
-};
+// window.updateUI is now in game-state.js
 
 window.applyChaosMode = function(mode) {
     console.log("Applying Chaos Mode:", mode);
     window.gameState.chaosMode = mode;
-    // Reset player colors
+    // Reset player colors and eye positions to default normal before applying new mode's changes
     window.gameState.player.bodyColor = '#36D96D'; // Normal green
-    window.gameState.player.eyeLeft = {x: 10, y: 10, radius: 5, pupilX: 12, pupilY: 12};
-    window.gameState.player.eyeRight = {x: 30, y: 10, radius: 5, pupilX: 28, pupilY: 12};
-
+    window.gameState.player.eyeLeft.y = 10;
+    window.gameState.player.eyeLeft.pupilY = 12;
+    window.gameState.player.eyeRight.y = 10;
+    window.gameState.player.eyeRight.pupilY = 12;
 
     switch (mode) {
         case 'normal':
@@ -426,10 +386,11 @@ window.applyChaosMode = function(mode) {
             break;
         case 'reverseGravity':
             window.gameState.player.gravity = -0.3 * window.gameState.chaosGravityMultiplier; // Negative gravity
-            window.gameState.player.jumpPower = 10 * window.gameState.chaosJumpPowerMultiplier; // Jump "down" with adjusted power
+            // Adjust jump power direction and magnitude
+            window.gameState.player.jumpPower = 10 * window.gameState.chaosJumpPowerMultiplier;
             window.gameState.player.maxSpeedX = 5;
             window.gameState.player.bodyColor = '#800080'; // Purple
-            // Adjust eyes for reverse gravity
+            // Adjust eyes to appear "upside down" or at bottom
             window.gameState.player.eyeLeft.y = window.gameState.player.height - 10;
             window.gameState.player.eyeLeft.pupilY = window.gameState.player.height - 12;
             window.gameState.player.eyeRight.y = window.gameState.player.height - 10;
