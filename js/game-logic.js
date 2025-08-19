@@ -1,534 +1,494 @@
 // js/game-logic.js
 
-// Destructure for easier access
-const {
-    canvas, ctx, player, platforms, gameCoins, gooSplats, chaosModes,
-    currentChaos, gameRunning, worldOffsetY, gameTimeMs, lastChaosTime,
-    chaosInterval, coinSize, coinChance, coinValue, inputLeft, inputRight
-} = window.gameState;
+// Initialize Game State
+window.gameState = {
+    canvas: document.getElementById('gameCanvas'),
+    ctx: null, // Context will be set on DOMContentLoaded
+    player: {
+        x: 0, y: 0, dx: 0, dy: 0,
+        width: 40, height: 40,
+        bodyColor: '#36D96D', // Green for normal
+        eyeLeft: {x: 10, y: 10, radius: 5, pupilX: 12, pupilY: 12},
+        eyeRight: {x: 30, y: 10, radius: 5, pupilX: 28, pupilY: 12},
+        jumpPower: -10, // Initial jump power
+        maxSpeedX: 5,
+        gravity: 0.3,
+        squishT: 0, // Squish animation timer
+        maxSquish: 0.1 // Max squish amount
+    },
+    platforms: [],
+    platformHeight: 15,
+    minPlatformGap: 80,
+    maxPlatformGap: 150,
+    minPlatformWidth: 60,
+    maxPlatformWidth: 120,
+    worldOffsetY: 0, // How much the world has scrolled down
+    gameRunning: false,
+    inputLeft: false,
+    inputRight: false,
+    gooSplats: [],
+    splatDecayRate: 0.05,
+    splatShrinkRate: 0.5,
+    gameCoins: [],
+    coinRadius: 8,
+    coinValue: 1, // How many coins each collected coin is worth
 
-// --- Game Logic Functions ---
-window.applyChaosMode = function(mode) {
-    window.gameState.currentChaos = mode;
+    // Game Stats / Player Data (will be loaded/saved from Firebase)
+    totalCoins: 0,
+    hearts: 1,
+    maxHeight: 0, // Max height achieved across all runs
 
-    // Reset to base
-    player.speed = player.baseSpeed;
-    player.maxSpeed = player.baseMaxSpeed;
-    player.friction = player.baseFriction;
-    player.gravity = player.baseGravity;
-    player.jumpPower = player.baseJumpPower;
+    // Current Round Stats
+    currentRoundCoins: 0,
+    currentRevivesUsed: 0,
+    maxRevivesPerGame: 1, // Only 1 revive per game session
 
-    switch (mode) {
-        case "normal":
-            window.showChaosAlert("NORMAL MODE");
-            setCharacterColor("#9D4EDD");
-            break;
-        case "gravity_flip":
-            window.showChaosAlert("GRAVITY FLIP!");
-            player.gravity = -0.42;
-            player.jumpPower = 10.5;
-            setCharacterColor("#FF69B4");
-            break;
-        case "reverse_controls":
-            window.showChaosAlert("REVERSE CONTROLS!");
-            setCharacterColor("#FFA500");
-            break;
-        case "super_speed":
-            window.showChaosAlert("SUPER SPEED!");
-            player.speed = 2.1;
-            player.maxSpeed = 12;
-            setCharacterColor("#00FFFF");
-            break;
-        case "slippery":
-            window.showChaosAlert("SLIPPERY MODE!");
-            player.friction = 0.98;
-            setCharacterColor("#ADD8E6");
-            break;
-        case "tiny_platforms":
-            window.showChaosAlert("TINY PLATFORMS!");
-            setCharacterColor("#FFD700");
-            break;
-        case "bouncy":
-            window.showChaosAlert("BOUNCY MODE!");
-            player.jumpPower = -15.5;
-            setCharacterColor("#FF69B4");
-            break;
-        case "slow_motion":
-            window.showChaosAlert("SLOW MOTION!");
-            player.speed = 0.35;
-            player.maxSpeed = 3.2;
-            player.gravity = 0.16;
-            player.jumpPower = -10.5;
-            setCharacterColor("#9370DB");
-            break;
-    }
+    // UI elements (references set in DOMContentLoaded)
+    scoreDisplay: document.getElementById("scoreDisplay"),
+    coinsDisplay: document.getElementById("coinsDisplay"),
+    heartsDisplay: document.getElementById("heartsDisplay"),
+    chaosTimerDisplay: document.getElementById("chaosTimerDisplay"),
+    chaosAlert: document.getElementById("chaosAlert"), // Assuming you have a div for this
+    leftZone: document.getElementById("leftTouchZone"),
+    rightZone: document.getElementById("rightTouchZone"),
 
-    canvas.classList.add('chaos-flash');
-    setTimeout(() => canvas.classList.remove('chaos-flash'), 500);
+    // Firebase refs
+    currentUserDataRef: null,
+
+    // Shop Items
+    shopItems: {
+        heart: { cost: 50, name: "Heart" }
+    },
+
+    // Chaos Mode
+    chaosMode: 'normal',
+    chaosDuration: 10000, // 10 seconds
+    chaosInterval: 30000, // Every 30 seconds
+    lastChaosTime: 0,
+    gameTimeMs: 0, // Total milliseconds game has been running
+    chaosGravityMultiplier: 1.5,
+    chaosJumpPowerMultiplier: 0.7,
+    chaosPlayerSpeedMultiplier: 1.5,
+    spikePlatformChance: 0.1, // 10% chance for spike platforms
+    bouncyPlatformChance: 0.1, // 10% chance for bouncy platforms
+    gooSplatChance: 0.05, // 5% chance to leave a splat on jump
+    coinGenerationChance: 0.6 // 60% chance for a coin to spawn on a platform
 };
 
-function setCharacterColor(color) {
-    player.bodyColor = color;
-}
+// --- Initial Canvas Setup ---
+document.addEventListener('DOMContentLoaded', () => {
+    window.gameState.ctx = window.gameState.canvas.getContext('2d');
+    window.gameState.canvas.width = 400; // Example width
+    window.gameState.canvas.height = 500; // Example height
+    console.log("Canvas context initialized. Canvas dimensions:", window.gameState.canvas.width, "x", window.gameState.canvas.height);
+});
 
-window.showChaosAlert = function(text) {
-    window.gameState.chaosAlert.textContent = text;
-    window.gameState.chaosAlert.style.display = "block";
-    setTimeout(() => { window.gameState.chaosAlert.style.display = "none"; }, 2000);
-};
+// --- Core Game Loop ---
+window.gameLoop = function(timestamp) {
+    if (!window.gameState.gameRunning) return;
 
-window.createPlatforms = function() {
-    window.gameState.platforms = [];
-    window.gameState.gameCoins = [];
-    const spacing = 120;
-    // Start platform
-    window.gameState.platforms.push({
-        x: 150,
-        y: canvas.height - 50,
-        width: 100,
-        height: 16,
-        phase: Math.random() * Math.PI * 2
-    });
-
-    for (let i = 1; i < 8; i++) {
-        const w = window.getPlatformWidth();
-        const newPlatform = {
-            x: Math.random() * (canvas.width - w),
-            y: canvas.height - 50 - (i * spacing),
-            width: w,
-            height: 16,
-            phase: Math.random() * Math.PI * 2
-        };
-        window.gameState.platforms.push(newPlatform);
-        if (Math.random() < coinChance) {
-            window.gameState.gameCoins.push({
-                x: newPlatform.x + newPlatform.width / 2 - coinSize / 2,
-                y: newPlatform.y - coinSize - 5,
-                collected: false
-            });
-        }
-    }
-};
-
-window.getCameraThreshold = function() {
-    return canvas.height * (window.gameState.currentChaos === "gravity_flip" ? 0.6 : 0.4);
-};
-
-window.gameLoop = function(ts) {
-    if (!window.gameState.gameRunning) {
-        window.gameLoop.lastTS = ts;
-        return;
-    }
-    if (!window.gameLoop.lastTS) window.gameLoop.lastTS = ts;
-    const dt = Math.min(32, ts - window.gameLoop.lastTS);
-    window.gameLoop.lastTS = ts;
-
+    const dt = timestamp - (window.gameLoop.lastTS || timestamp);
+    window.gameLoop.lastTS = timestamp;
     window.gameState.gameTimeMs += dt;
 
-    // Chaos timer
-    if (window.gameState.gameTimeMs - window.gameState.lastChaosTime >= chaosInterval) {
-        window.gameState.lastChaosTime = window.gameState.gameTimeMs;
-        const randomChaos = chaosModes[Math.floor(Math.random() * chaosModes.length)];
-        window.applyChaosMode(randomChaos);
-    }
-    const timeToNextChaos = Math.max(0, chaosInterval - (window.gameState.gameTimeMs - window.gameState.lastChaosTime));
-    window.gameState.chaosTimerDisplay.textContent = `Chaos: ${Math.ceil(timeToNextChaos / 1000)}s`;
-
-    update(dt);
-    draw();
+    window.updateGame(dt / 1000); // Update based on seconds
+    window.drawGame();
 
     requestAnimationFrame(window.gameLoop);
 };
 
-function update(dt) {
-    // Input with reverse support
-    let leftInput = window.gameState.inputLeft;
-    let rightInput = window.gameState.inputRight;
-    if (window.gameState.currentChaos === "reverse_controls") {
-        leftInput = window.gameState.inputRight;
-        rightInput = window.gameState.inputLeft;
-    }
-    if (leftInput) player.dx -= player.speed;
-    if (rightInput) player.dx += player.speed;
-
-    player.dx *= player.friction;
-    player.dx = Math.max(-player.maxSpeed, Math.min(player.maxSpeed, player.dx));
-    player.x += player.dx;
-
-    // Wrap horizontally
-    if (player.x + player.width < 0) player.x = canvas.width;
-    if (player.x > canvas.width) player.x = -player.width;
-
-    // Gravity
-    player.dy += player.gravity;
-    player.y += player.dy;
-
-    // Platform collisions
-    let landed = false;
-    let landedPlatform = null;
-
-    for (let i = 0; i < platforms.length; i++) {
-        const p = platforms[i];
-
-        if (window.gameState.currentChaos === "gravity_flip") {
-            const collide =
-                player.x + player.width > p.x &&
-                player.x < p.x + p.width &&
-                player.y < p.y + p.height &&
-                player.y > p.y - 12 &&
-                player.dy < 0;
-
-            if (collide) {
-                player.dy = player.jumpPower;
-                player.y = p.y + p.height;
-                landed = true;
-                landedPlatform = p;
-                break;
-            }
-        } else {
-            const collide =
-                player.x + player.width > p.x &&
-                player.x < p.x + p.width &&
-                player.y + player.height > p.y &&
-                player.y + player.height < p.y + p.height + 12 &&
-                player.dy > 0;
-
-            if (collide) {
-                player.dy = player.jumpPower;
-                player.y = p.y - player.height;
-                landed = true;
-                landedPlatform = p;
-                break;
-            }
-        }
+// --- Game Logic Updates ---
+window.updateGame = function(dt) {
+    // Player horizontal movement
+    if (window.gameState.inputLeft) {
+        window.gameState.player.dx = Math.max(-window.gameState.player.maxSpeedX, window.gameState.player.dx - 0.5);
+    } else if (window.gameState.inputRight) {
+        window.gameState.player.dx = Math.min(window.gameState.player.maxSpeedX, window.gameState.player.dx + 0.5);
+    } else {
+        // Gradual deceleration
+        if (window.gameState.player.dx > 0) window.gameState.player.dx = Math.max(0, window.gameState.player.dx - 0.2);
+        if (window.gameState.player.dx < 0) window.gameState.player.dx = Math.min(0, window.gameState.player.dx + 0.2);
     }
 
-    if (landed && landedPlatform) {
-        window.spawnGooSplat(landedPlatform, window.gameState.currentChaos === "gravity_flip" ? +1 : -1);
-        player.squishT = 1.0;
+    // Apply player horizontal movement
+    window.gameState.player.x += window.gameState.player.dx;
+
+    // Player horizontal boundary collision
+    if (window.gameState.player.x < 0) {
+        window.gameState.player.x = 0;
+        window.gameState.player.dx = 0;
+    } else if (window.gameState.player.x + window.gameState.player.width > window.gameState.canvas.width) {
+        window.gameState.player.x = window.gameState.canvas.width - window.gameState.player.width;
+        window.gameState.player.dx = 0;
     }
 
-    if (player.squishT > 0) player.squishT = Math.max(0, player.squishT - dt / 200);
+    // Apply gravity
+    window.gameState.player.dy += window.gameState.player.gravity;
+    window.gameState.player.y += window.gameState.player.dy;
 
-    // Camera follow & height
+    // Camera movement (scroll the world down)
     const cameraThreshold = window.getCameraThreshold();
-    const passedThreshold =
-        (window.gameState.currentChaos !== "gravity_flip" && player.y < cameraThreshold) ||
-        (window.gameState.currentChaos === "gravity_flip" && player.y > cameraThreshold);
+    if (window.gameState.player.y < cameraThreshold) {
+        const deltaY = cameraThreshold - window.gameState.player.y;
+        window.gameState.worldOffsetY += deltaY;
+        window.gameState.player.y = cameraThreshold;
 
-    if (passedThreshold) {
-        const scrollAmount = Math.abs(cameraThreshold - player.y);
-        player.y = cameraThreshold;
+        // Move existing platforms and coins down with the world
+        window.gameState.platforms.forEach(p => p.y += deltaY);
+        window.gameState.gameCoins.forEach(c => c.y += deltaY);
 
-        window.gameState.worldOffsetY += scrollAmount;
-        window.updateUI();
+        // Generate new platforms and coins above the screen
+        window.generateNewPlatformsAndCoins(deltaY);
+    }
 
-        if (window.gameState.currentChaos === "gravity_flip") {
-            platforms.forEach(p => p.y -= scrollAmount);
-            gameCoins.forEach(c => c.y -= scrollAmount);
-            window.gameState.platforms = platforms.filter(p => p.y > -60);
-            window.gameState.gameCoins = gameCoins.filter(c => c.y > -60);
-            while (window.gameState.platforms.length < 8) {
-                const bottom = window.gameState.platforms.reduce((low, p) => (p.y > low.y ? p : low));
-                const w = window.getPlatformWidth();
-                const newPlatform = {
-                    x: Math.random() * (canvas.width - w),
-                    y: bottom.y + 120,
-                    width: w,
-                    height: 16,
-                    phase: Math.random() * Math.PI * 2
-                };
-                window.gameState.platforms.push(newPlatform);
-                if (Math.random() < coinChance) {
-                    window.gameState.gameCoins.push({
-                        x: newPlatform.x + newPlatform.width / 2 - coinSize / 2,
-                        y: newPlatform.y + newPlatform.height + 5,
-                        collected: false
+    // Platform collision
+    window.gameState.platforms.forEach(p => {
+        // Player is falling and intersects with platform
+        if (window.gameState.player.dy > 0 &&
+            window.gameState.player.x < p.x + p.width &&
+            window.gameState.player.x + window.gameState.player.width > p.x &&
+            window.gameState.player.y + window.gameState.player.height > p.y &&
+            window.gameState.player.y + window.gameState.player.height < p.y + window.gameState.player.dy + p.height) // Check collision from above
+        {
+            if (p.type === 'normal' || p.type === 'bouncy') {
+                window.gameState.player.dy = window.gameState.player.jumpPower * (p.type === 'bouncy' ? 1.5 : 1); // Jump off platform
+                window.gameState.player.y = p.y - window.gameState.player.height; // Snap to top of platform
+                window.gameState.player.squishT = 1; // Start squish animation
+                if (Math.random() < window.gameState.gooSplatChance) { // Chance to leave a splat
+                    window.gameState.gooSplats.push({
+                        x: window.gameState.player.x + window.gameState.player.width / 2,
+                        y: p.y,
+                        radius: window.gameState.player.width / 2,
+                        alpha: 1
                     });
                 }
-            }
-        } else {
-            platforms.forEach(p => p.y += scrollAmount);
-            gameCoins.forEach(c => c.y += scrollAmount);
-            window.gameState.platforms = platforms.filter(p => p.y < canvas.height + 60);
-            window.gameState.gameCoins = gameCoins.filter(c => c.y < canvas.height + 60);
-            while (window.gameState.platforms.length < 8) {
-                const top = window.gameState.platforms.reduce((hi, p) => (p.y < hi.y ? p : hi));
-                const w = window.getPlatformWidth();
-                const newPlatform = {
-                    x: Math.random() * (canvas.width - w),
-                    y: top.y - 120,
-                    width: w,
-                    height: 16,
-                    phase: Math.random() * Math.PI * 2
-                };
-                window.gameState.platforms.push(newPlatform);
-                if (Math.random() < coinChance) {
-                    window.gameState.gameCoins.push({
-                        x: newPlatform.x + newPlatform.width / 2 - coinSize / 2,
-                        y: newPlatform.y - coinSize - 5,
-                        collected: false
-                    });
-                }
+            } else if (p.type === 'spike') {
+                // Instantly end game if hit spike platform from above
+                console.log("Hit spike platform. Game Over.");
+                window.endGame();
+                return; // Stop processing to avoid further updates
             }
         }
+    });
+
+    // Check if player fell below screen
+    if (window.gameState.player.y - window.gameState.worldOffsetY > window.gameState.canvas.height) {
+        console.log("Player fell off screen. Game Over.");
+        window.endGame();
+    }
+
+    // Coin collision
+    window.gameState.gameCoins.forEach(c => {
+        if (!c.collected &&
+            window.gameState.player.x < c.x + window.gameState.coinRadius &&
+            window.gameState.player.x + window.gameState.player.width > c.x - window.gameState.coinRadius &&
+            window.gameState.player.y < c.y + window.gameState.coinRadius &&
+            window.gameState.player.y + window.gameState.player.height > c.y - window.gameState.coinRadius)
+        {
+            c.collected = true;
+            window.gameState.currentRoundCoins += window.gameState.coinValue;
+            window.updateUI(); // Update UI immediately
+        }
+    });
+    // Remove collected coins
+    window.gameState.gameCoins = window.gameState.gameCoins.filter(c => !c.collected);
+
+
+    // Update squish animation
+    if (window.gameState.player.squishT > 0) {
+        window.gameState.player.squishT = Math.max(0, window.gameState.player.squishT - 5 * dt);
     }
 
     // Update goo splats
-    for (let i = gooSplats.length - 1; i >= 0; i--) {
-        const g = gooSplats[i];
-        g.t += dt;
-        if (g.t >= g.life) {
-            gooSplats.splice(i, 1);
-        }
+    window.gameState.gooSplats.forEach(splat => {
+        splat.alpha -= window.gameState.splatDecayRate * dt;
+        splat.radius -= window.gameState.splatShrinkRate * dt;
+    });
+    window.gameState.gooSplats = window.gameState.gooSplats.filter(splat => splat.alpha > 0 && splat.radius > 0);
+
+    // Chaos Mode Management
+    if (window.gameState.gameTimeMs - window.gameState.lastChaosTime > window.gameState.chaosInterval) {
+        window.gameState.lastChaosTime = window.gameState.gameTimeMs;
+        const modes = ['reverseGravity', 'fastPlayer']; // Add more modes here
+        const newMode = modes[Math.floor(Math.random() * modes.length)];
+        window.applyChaosMode(newMode);
+
+        // Schedule return to normal
+        setTimeout(() => {
+            window.applyChaosMode('normal');
+        }, window.gameState.chaosDuration);
     }
 
-    // Coin collection (current round only)
-    for (let i = gameCoins.length - 1; i >= 0; i--) {
-        const coin = gameCoins[i];
-        if (!coin.collected) {
-            if (
-                player.x < coin.x + coinSize &&
-                player.x + player.width > coin.x &&
-                player.y < coin.y + coinSize &&
-                player.y + player.height > coin.y
-            ) {
-                coin.collected = true;
-                window.gameState.currentRoundCoins += coinValue;
-                window.updateUI();
-                gameCoins.splice(i, 1);
-            }
-        }
-    }
-
-    // Death condition
-    if ((window.gameState.currentChaos !== "gravity_flip" && player.y > canvas.height + 60) ||
-        (window.gameState.currentChaos === "gravity_flip" && player.y < -60)) {
-        window.endGame();
-    }
-}
-
-// --- Drawing Functions ---
-window.draw = function() {
-    const t = window.gameState.gameTimeMs;
-    const h = window.heightMeters();
-    const chaosIntensity = h / 1000;
-
-    drawEvolvingBackground(t, chaosIntensity);
-
-    platforms.forEach(p => drawPlatform(p, t, chaosIntensity));
-    gameCoins.forEach(c => drawCoin(c));
-    drawGooSplats(t);
-    drawCharacter(player.x, player.y, player.width, player.height, t);
+    // Update UI (score, coins, hearts)
+    window.updateUI();
 };
 
-function drawEvolvingBackground(t, intensity) {
-    const ease = (x) => x < 0 ? 0 : x / (1 + x);
-    const k = ease(intensity);
+// --- Drawing Functions ---
+window.drawGame = function() {
+    window.gameState.ctx.clearRect(0, 0, window.gameState.canvas.width, window.gameState.canvas.height); // Clear canvas
+    window.gameState.ctx.fillStyle = '#0f0f0f'; // Dark background
+    window.gameState.ctx.fillRect(0, 0, window.gameState.canvas.width, window.gameState.canvas.height);
 
-    const topHueShift = Math.min(60, k * 60);
-    const bottomHueShift = Math.min(120, k * 120);
+    // Draw Goo Splats
+    window.gameState.gooSplats.forEach(splat => {
+        window.gameState.ctx.fillStyle = `rgba(54, 217, 109, ${splat.alpha})`; // Greenish with alpha
+        window.gameState.ctx.beginPath();
+        window.gameState.ctx.arc(splat.x, splat.y + window.gameState.worldOffsetY, splat.radius, 0, Math.PI * 2);
+        window.gameState.ctx.fill();
+    });
 
-    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    grad.addColorStop(0, window.hslShift("#2c5364", topHueShift, 0.0, 0.0));
-    grad.addColorStop(0.5, window.hslShift("#203a43", topHueShift * 0.6, 0.05, 0.0));
-    grad.addColorStop(1, window.hslShift("#0f2027", bottomHueShift, -0.05, -0.05));
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Draw Platforms
+    for (let i = 0; i < window.gameState.platforms.length; i++) {
+        const p = window.gameState.platforms[i];
+        // Only draw platforms that are currently visible on screen
+        if (p.y + window.gameState.worldOffsetY + p.height > 0 && p.y + window.gameState.worldOffsetY < window.gameState.canvas.height) {
+            window.gameState.ctx.fillStyle = p.color;
+            window.gameState.ctx.fillRect(p.x, p.y + window.gameState.worldOffsetY, p.width, p.height);
 
-    const blobCount = Math.floor(5 + Math.min(20, k * 12));
-    const speed = 0.02 + Math.min(0.12, k * 0.08);
-    const blur = Math.min(10, k * 10);
-    const alpha = 0.08 + Math.min(0.2, k * 0.15);
-
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    if (ctx.filter !== undefined) ctx.filter = `blur(${blur.toFixed(1)}px)`;
-
-    for (let i = 0; i < blobCount; i++) {
-        const phase = i * 917;
-        const x = (t * speed + phase) % (canvas.width + 120) - 60;
-        const y = (t * speed * 0.6 + phase * 0.3) % (canvas.height + 120) - 60;
-        const rx = 30 + 25 * Math.sin((t * 0.002) + i);
-        const ry = 20 + 18 * Math.cos((t * 0.0025) - i);
-
-        ctx.fillStyle = i % 2 === 0 ? player.bodyColor : "#457B9D";
-        ctx.beginPath();
-        ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    if (ctx.filter !== undefined) ctx.filter = "none";
-    ctx.restore();
-}
-
-function drawPlatform(p, t, chaosIntensity) {
-    const wobbleAmp = 2 + Math.min(5, chaosIntensity * 2.5);
-    const frequency = 0.003 + chaosIntensity * 0.0015;
-    const phase = p.phase + t * frequency;
-
-    const x = p.x;
-    const y = p.y;
-    const w = p.width;
-    const h = p.height;
-
-    const topY = y + (Math.sin(phase) * wobbleAmp);
-    const botY = y + h + (Math.sin(phase + 1.9) * wobbleAmp * 0.6);
-
-    const fill = ctx.createLinearGradient(0, y, 0, y + h);
-    fill.addColorStop(0, window.hslShift("#6EA8D6", chaosIntensity * 30, -0.05, 0.05));
-    fill.addColorStop(1, window.hslShift("#457B9D", chaosIntensity * 10, 0.0, -0.02));
-    ctx.fillStyle = fill;
-
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#000";
-    ctx.setLineDash([8, 6]);
-    ctx.lineDashOffset = Math.sin(t * 0.005 + p.phase) * 6;
-
-    ctx.beginPath();
-    ctx.moveTo(x + 10, topY);
-    ctx.quadraticCurveTo(x, topY, x, topY + h/2);
-    ctx.quadraticCurveTo(x, botY, x + 10, botY);
-    ctx.lineTo(x + w - 10, botY);
-    ctx.quadraticCurveTo(x + w, botY, x + w, topY + h/2);
-    ctx.quadraticCurveTo(x + w, topY, x + w - 10, topY);
-    ctx.closePath();
-
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.setLineDash([]);
-    ctx.strokeStyle = "rgba(255,255,255,0.15)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(x + 8, topY + 4);
-    ctx.lineTo(x + w - 8, topY + 4 + Math.sin(phase + 0.6) * 1.5);
-    ctx.stroke();
-}
-
-function drawGooSplats(t) {
-    for (const g of window.gameState.gooSplats) {
-        const prog = g.t / g.life;
-        const easeOut = 1 - Math.pow(1 - prog, 2);
-        const alpha = 0.6 * (1 - easeOut);
-        const radius = 6 + easeOut * 18;
-        const width = g.w * (0.6 + 0.4 * (1 - easeOut));
-
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        if (ctx.filter !== undefined) ctx.filter = "blur(4px)";
-        ctx.fillStyle = g.color;
-
-        ctx.beginPath();
-        const y = g.y + g.dir * (2 + easeOut * 4);
-        const x1 = g.x - width / 2;
-        const x2 = g.x + width / 2;
-        ctx.moveTo(x1, y);
-        ctx.quadraticCurveTo(x1 - radius, y + g.dir * radius, x1, y + g.dir * radius * 2);
-        ctx.lineTo(x2, y + g.dir * radius * 2);
-        ctx.quadraticCurveTo(x2 + radius, y + g.dir * radius, x2, y);
-        ctx.closePath();
-        ctx.fill();
-
-        const bumps = 3;
-        for (let i = 0; i < bumps; i++) {
-            const bx = x1 + (i + 0.5) * (width / bumps);
-            const br = 3 + easeOut * 6;
-            ctx.beginPath();
-            ctx.ellipse(bx, y + g.dir * (2 + i), br, br * 0.7, 0, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        if (g.drops) {
-            for (const d of g.drops) {
-                d.t += 16;
-                const dp = Math.min(1, d.t / d.life);
-                const dr = d.r0 + dp * 3;
-                const dalpha = 0.5 * (1 - dp);
-                d.x += d.vx * 16;
-                d.y += d.vy * 16;
-
-                ctx.globalAlpha = dalpha;
-                ctx.fillStyle = d.color;
-                ctx.beginPath();
-                ctx.ellipse(d.x, d.y, dr, dr * 0.8, 0, 0, Math.PI * 2);
-                ctx.fill();
+            // Draw special platform features (e.g., spikes for 'spike' platforms)
+            if (p.type === 'spike') {
+                window.gameState.ctx.fillStyle = '#ff0000'; // Red color for spikes
+                const spikeHeight = p.height * 0.8; // Spikes are almost as tall as the platform
+                const spikeWidth = p.width / 5; // Example: 5 spikes across the platform
+                for (let j = 0; j < Math.ceil(p.width / (spikeWidth / 2)); j++) { // Ensure full coverage
+                    const spikeX = p.x + j * (spikeWidth / 2);
+                    const spikeY = p.y + window.gameState.worldOffsetY;
+                    window.gameState.ctx.beginPath();
+                    window.gameState.ctx.moveTo(spikeX, spikeY + p.height); // Bottom left of spike base
+                    window.gameState.ctx.lineTo(spikeX + spikeWidth / 2, spikeY + p.height - spikeHeight); // Top point of spike
+                    window.gameState.ctx.lineTo(spikeX + spikeWidth, spikeY + p.height); // Bottom right of spike base
+                    window.gameState.ctx.closePath();
+                    window.gameState.ctx.fill();
+                }
+            } else if (p.type === 'bouncy') {
+                window.gameState.ctx.fillStyle = '#ADD8E6'; // Light blue for bouncy
+                window.gameState.ctx.beginPath();
+                window.gameState.ctx.arc(p.x + p.width / 2, p.y + window.gameState.worldOffsetY + p.height / 2, p.width / 4, 0, Math.PI * 2);
+                window.gameState.ctx.fill();
             }
         }
-
-        if (ctx.filter !== undefined) ctx.filter = "none";
-        ctx.restore();
     }
-}
 
-function drawCoin(coin) {
-    if (coin.collected) return;
-    ctx.beginPath();
-    ctx.arc(coin.x + window.gameState.coinSize / 2, coin.y + window.gameState.coinSize / 2, window.gameState.coinSize / 2, 0, Math.PI * 2);
-    ctx.fillStyle = "gold";
-    ctx.fill();
-    ctx.strokeStyle = "orange";
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    // Draw Coins
+    window.gameState.gameCoins.forEach(c => {
+        if (!c.collected &&
+            c.y + window.gameState.worldOffsetY + window.gameState.coinRadius > 0 &&
+            c.y + window.gameState.worldOffsetY - window.gameState.coinRadius < window.gameState.canvas.height)
+        {
+            window.gameState.ctx.fillStyle = '#FFD700'; // Gold color
+            window.gameState.ctx.beginPath();
+            window.gameState.ctx.arc(c.x, c.y + window.gameState.worldOffsetY, window.gameState.coinRadius, 0, Math.PI * 2);
+            window.gameState.ctx.fill();
+        }
+    });
 
-    if (Math.random() < 0.1) {
-        ctx.save();
-        ctx.globalAlpha = 0.8;
-        ctx.fillStyle = "white";
-        ctx.beginPath();
-        ctx.arc(coin.x + window.gameState.coinSize / 2 + (Math.random()-0.5)*4, coin.y + window.gameState.coinSize / 2 + (Math.random()-0.5)*4, 1, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
+    // Draw Player
+    const player = window.gameState.player;
+    const squishedWidth = player.width * (1 - player.maxSquish * player.squishT);
+    const squishedHeight = player.height * (1 + player.maxSquish * player.squishT);
+    const squishedX = player.x + (player.width - squishedWidth) / 2;
+    const squishedY = player.y + (player.height - squishedHeight);
+
+    window.gameState.ctx.fillStyle = player.bodyColor;
+    window.gameState.ctx.fillRect(squishedX, squishedY, squishedWidth, squishedHeight);
+
+    // Draw Player Eyes
+    window.gameState.ctx.fillStyle = 'white';
+    window.gameState.ctx.beginPath();
+    window.gameState.ctx.arc(squishedX + player.eyeLeft.x, squishedY + player.eyeLeft.y, player.eyeLeft.radius, 0, Math.PI * 2);
+    window.gameState.ctx.arc(squishedX + player.eyeRight.x, squishedY + player.eyeRight.y, player.eyeRight.radius, 0, Math.PI * 2);
+    window.gameState.ctx.fill();
+
+    window.gameState.ctx.fillStyle = 'black';
+    window.gameState.ctx.beginPath();
+    window.gameState.ctx.arc(squishedX + player.eyeLeft.pupilX, squishedY + player.eyeLeft.pupilY, player.eyeLeft.radius * 0.5, 0, Math.PI * 2);
+    window.gameState.ctx.arc(squishedX + player.eyeRight.pupilX, squishedY + player.eyeRight.pupilY, player.eyeRight.radius * 0.5, 0, Math.PI * 2);
+    window.gameState.ctx.fill();
+};
+
+// --- Platform Generation ---
+window.createPlatforms = function() {
+    console.log("Calling createPlatforms()");
+    window.gameState.platforms = []; // Clear existing platforms for a new game
+
+    // Initial platform (the ground or first platform) at the bottom
+    window.gameState.platforms.push({
+        x: 0,
+        y: window.gameState.canvas.height - window.gameState.platformHeight,
+        width: window.gameState.canvas.width,
+        height: window.gameState.platformHeight,
+        type: 'normal',
+        color: '#1a1a1a' // Dark grey for ground
+    });
+
+    let currentY = window.gameState.canvas.height - window.gameState.platformHeight * 2; // Start generating above the first platform
+    const generateHeight = window.gameState.canvas.height * 2; // Generate platforms for at least 2 screen heights
+    console.log(`Generating platforms up to Y: ${-generateHeight}`);
+
+    while (currentY > -generateHeight) {
+        const gap = window.gameState.minPlatformGap + Math.random() * (window.gameState.maxPlatformGap - window.gameState.minPlatformGap);
+        currentY -= gap; // Move up by gap
+
+        const platformWidth = window.gameState.minPlatformWidth + Math.random() * (window.gameState.maxPlatformWidth - window.gameState.minPlatformWidth);
+        const platformX = Math.random() * (window.gameState.canvas.width - platformWidth);
+
+        let type = 'normal';
+        let color = '#333333'; // Default normal platform color
+
+        // Determine platform type based on chances
+        const r = Math.random();
+        if (r < window.gameState.spikePlatformChance) {
+            type = 'spike';
+        } else if (r < window.gameState.spikePlatformChance + window.gameState.bouncyPlatformChance) {
+            type = 'bouncy';
+        }
+
+        color = window.getPlatformColor(type);
+
+        const newPlatform = {
+            x: platformX,
+            y: currentY,
+            width: platformWidth,
+            height: window.gameState.platformHeight,
+            type: type,
+            color: color
+        };
+        window.gameState.platforms.push(newPlatform);
+
+        // Optionally add a coin to this platform
+        if (Math.random() < window.gameState.coinGenerationChance) {
+            window.gameState.gameCoins.push({
+                x: newPlatform.x + newPlatform.width / 2,
+                y: newPlatform.y - window.gameState.coinRadius - 5, // Position slightly above the platform
+                collected: false
+            });
+        }
     }
-}
+    console.log("createPlatforms() finished. Total platforms created:", window.gameState.platforms.length);
+};
 
-function drawCharacter(x, y, w, h, t) {
-    const squish = player.squishT;
-    const squashY = 1 + 0.25 * squish;
-    const squashX = 1 - 0.12 * squish;
+window.generateNewPlatformsAndCoins = function(deltaY) {
+    // Remove platforms and coins that are far below the screen
+    window.gameState.platforms = window.gameState.platforms.filter(p => p.y + p.height + window.gameState.worldOffsetY > 0);
+    window.gameState.gameCoins = window.gameState.gameCoins.filter(c => c.y + window.gameState.coinRadius + window.gameState.worldOffsetY > 0);
 
-    const cx = x + w / 2;
-    const cy = y + h / 2;
+    // Find the highest platform currently generated
+    const highestPlatformY = window.gameState.platforms.reduce((minY, p) => Math.min(minY, p.y), 0);
 
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.scale(squashX, squashY);
-    ctx.translate(-cx, -cy);
+    // Generate new platforms and coins above the highest existing one
+    let currentY = highestPlatformY;
+    const generateMoreHeight = window.gameState.canvas.height; // Generate for one more screen height
+    while (currentY > highestPlatformY - generateMoreHeight) { // Generate new platforms as the camera moves up
+        const gap = window.gameState.minPlatformGap + Math.random() * (window.gameState.maxPlatformGap - window.gameState.minPlatformGap);
+        currentY -= gap;
 
-    ctx.fillStyle = player.bodyColor;
-    ctx.strokeStyle = "#000";
-    ctx.lineWidth = 2;
+        const platformWidth = window.gameState.minPlatformWidth + Math.random() * (window.gameState.maxPlatformWidth - window.gameState.minPlatformWidth);
+        const platformX = Math.random() * (window.gameState.canvas.width - platformWidth);
 
-    ctx.beginPath();
-    const wob = 2 + Math.sin(t * 0.005) * 1.5;
-    const r = Math.min(w, h) / 2 - 3;
-    const bx = cx, by = cy;
-    for (let i = 0; i <= 16; i++) {
-        const ang = (i / 16) * Math.PI * 2;
-        const nr = r + Math.sin(ang * 3 + t * 0.003) * 2 + wob;
-        const px = bx + Math.cos(ang) * nr;
-        const py = by + Math.sin(ang) * nr;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
+        let type = 'normal';
+        let color = '#333333';
+
+        const r = Math.random();
+        if (r < window.gameState.spikePlatformChance) {
+            type = 'spike';
+        } else if (r < window.gameState.spikePlatformChance + window.gameState.bouncyPlatformChance) {
+            type = 'bouncy';
+        }
+
+        color = window.getPlatformColor(type);
+
+        const newPlatform = {
+            x: platformX,
+            y: currentY,
+            width: platformWidth,
+            height: window.gameState.platformHeight,
+            type: type,
+            color: color
+        };
+        window.gameState.platforms.push(newPlatform);
+
+        if (Math.random() < window.gameState.coinGenerationChance) {
+            window.gameState.gameCoins.push({
+                x: newPlatform.x + newPlatform.width / 2,
+                y: newPlatform.y - window.gameState.coinRadius - 5,
+                collected: false
+            });
+        }
     }
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
+    // console.log("Generated new platforms. Total:", window.gameState.platforms.length);
+};
 
-    // Eyes
-    ctx.fillStyle = "#FFD166";
-    ctx.strokeStyle = "#000";
-    ctx.lineWidth = 1.5;
-    const eyeLX = x + w * 0.38, eyeLY = y + h * 0.42;
-    ctx.beginPath(); ctx.arc(eyeLX, eyeLY, 5.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = "#000";
-    ctx.beginPath(); ctx.arc(eyeLX, eyeLY, 2, 0, Math.PI * 2); ctx.fill();
+// --- Helper Functions ---
+window.heightMeters = function() {
+    return Math.floor(Math.abs(window.gameState.worldOffsetY / 10)); // Convert pixels to meters (10px = 1m)
+};
 
-    ctx.fillStyle = "#457B9D";
-    ctx.strokeStyle = "#000";
-    const eyeRX = x + w * 0.62, eyeRY = y + h * 0.5;
-    ctx.beginPath(); ctx.arc(eyeRX, eyeRY, 4.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = "#000";
-    ctx.beginPath(); ctx.arc(eyeRX, eyeRY, 1.8, 0, Math.PI * 2); ctx.fill();
+window.getCameraThreshold = function() {
+    // Player should be snapped to this Y position as the camera scrolls
+    return window.gameState.canvas.height * 0.4; // Example: 40% up from the bottom
+};
 
-    ctx.restore();
-}
+window.updateUI = function() {
+    // Update Score/Height
+    window.gameState.scoreDisplay.textContent = `Height: ${window.heightMeters()}m`;
+    // Update Coins (current round + total)
+    window.gameState.coinsDisplay.textContent = `Coins: ${window.gameState.currentRoundCoins} (+${window.gameState.totalCoins})`;
+    // Update Hearts
+    window.gameState.heartsDisplay.textContent = `Hearts: ${window.gameState.hearts}`;
+
+    // Update Chaos Timer (if active)
+    if (window.gameState.chaosMode !== 'normal') {
+        const timeRemaining = Math.max(0, window.gameState.chaosDuration - (window.gameState.gameTimeMs - window.gameState.lastChaosTime));
+        window.gameState.chaosTimerDisplay.textContent = `Chaos: ${Math.ceil(timeRemaining / 1000)}s`;
+        window.gameState.chaosTimerDisplay.style.color = 'red';
+        window.gameState.chaosAlert.style.display = 'block';
+        window.gameState.chaosAlert.textContent = `Chaos Mode: ${window.gameState.chaosMode.toUpperCase()}!`;
+    } else {
+        window.gameState.chaosTimerDisplay.textContent = '';
+        window.gameState.chaosTimerDisplay.style.color = '';
+        window.gameState.chaosAlert.style.display = 'none';
+    }
+
+    // Update shop screen if visible
+    if (window.shopScreen.style.display === 'flex') {
+        window.shopCoinsDisplay.textContent = window.gameState.totalCoins;
+    }
+};
+
+window.applyChaosMode = function(mode) {
+    console.log("Applying Chaos Mode:", mode);
+    window.gameState.chaosMode = mode;
+    window.gameState.player.bodyColor = '#36D96D'; // Reset to normal green
+
+    switch (mode) {
+        case 'normal':
+            window.gameState.player.gravity = 0.3;
+            window.gameState.player.jumpPower = -10;
+            window.gameState.player.maxSpeedX = 5;
+            window.gameState.player.bodyColor = '#36D96D'; // Normal green
+            break;
+        case 'reverseGravity':
+            window.gameState.player.gravity = -0.3; // Negative gravity
+            window.gameState.player.jumpPower = 10; // Jump "down"
+            window.gameState.player.maxSpeedX = 5;
+            window.gameState.player.bodyColor = '#800080'; // Purple
+            break;
+        case 'fastPlayer':
+            window.gameState.player.gravity = 0.3;
+            window.gameState.player.jumpPower = -10;
+            window.gameState.player.maxSpeedX = 8; // Faster horizontal speed
+            window.gameState.player.bodyColor = '#00FFFF'; // Cyan
+            break;
+        // Add more chaos modes as needed
+    }
+    window.updateUI(); // Update UI to reflect changes
+};
+
+window.getPlatformColor = function(type) {
+    switch (type) {
+        case 'normal': return '#333333'; // Dark grey
+        case 'spike':  return '#8B0000'; // Dark red
+        case 'bouncy': return '#00BFFF'; // Deep sky blue
+        default:       return '#333333';
+    }
+};

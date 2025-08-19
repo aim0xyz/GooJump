@@ -2,7 +2,8 @@
 
 // Firebase Auth State Listener
 window.auth.onAuthStateChanged(async (user) => {
-    const welcomeMessage = document.getElementById("welcomeMessage");
+    // welcomeMessage is now directly accessed from ui-handlers.js scope, ensure it's defined
+    // or pass it in a more structured way if using modules. For now, assuming it's global scope.
     console.log("onAuthStateChanged fired. Current user:", user ? user.uid : "No user");
 
     if (user) {
@@ -37,13 +38,14 @@ window.loadUserData = async function(uid) {
             console.log("User data loaded from Firestore:", data);
         } else {
             console.warn("No user data found in Firestore for UID:", uid, ". Creating new default document.");
-            // Create a new document for the user if it doesn't exist (e.g., first Google sign-in)
+            // Create a new document for the user if it doesn't exist (e.g., first Google sign-in or registration)
             await window.db.collection('users').doc(uid).set({
-                email: window.auth.currentUser.email,
+                email: window.auth.currentUser.email, // Use the authenticated user's email
                 totalCoins: 0,
                 hearts: 1,
                 maxHeight: 0
             });
+            // Set local game state to default values after creation
             window.gameState.totalCoins = 0;
             window.gameState.hearts = 1;
             window.gameState.maxHeight = 0;
@@ -62,8 +64,8 @@ window.saveUserData = async function() {
         console.warn("saveUserData called but no user is logged in (currentUserDataRef is null). Data not saved.");
         return;
     }
-    const currentMaxHeight = window.heightMeters();
-    const newMaxHeight = Math.max(window.gameState.maxHeight, currentMaxHeight);
+    const currentHeight = window.heightMeters(); // Get current height, even if not max
+    const newMaxHeight = Math.max(window.gameState.maxHeight, currentHeight); // Update max height only if current is higher
 
     console.log(`Saving user data. Coins: ${window.gameState.totalCoins}, Hearts: ${window.gameState.hearts}, Max Height: ${newMaxHeight}`);
     try {
@@ -86,10 +88,12 @@ window.loadLeaderboard = async function() {
     leaderboardList.innerHTML = ''; // Clear previous list
     console.log("Attempting to load leaderboard data.");
     try {
+        // Order by maxHeight in descending order and limit to top 10
         const querySnapshot = await window.db.collection('users')
                                           .orderBy('maxHeight', 'desc')
                                           .limit(10)
                                           .get();
+
         if (querySnapshot.empty) {
             console.log("Leaderboard is empty. No scores found.");
             leaderboardList.innerHTML = '<li>No scores yet. Be the first!</li>';
@@ -99,8 +103,8 @@ window.loadLeaderboard = async function() {
         console.log("Leaderboard data received:", querySnapshot.docs.length, "documents.");
         querySnapshot.forEach((doc, index) => {
             const data = doc.data();
-            const username = data.email ? data.email.split('@')[0] : 'Unknown Player';
-            const score = data.maxHeight || 0;
+            const username = data.email ? data.email.split('@')[0] : 'Unknown Player'; // Use email prefix as username
+            const score = data.maxHeight || 0; // Display max height
             const li = document.createElement('li');
             li.innerHTML = `<span>${index + 1}. ${username}</span><span>${score}m</span>`;
             leaderboardList.appendChild(li);
