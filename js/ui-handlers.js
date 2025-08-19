@@ -31,6 +31,7 @@ const leaderboardBackButton = document.getElementById("leaderboardBackButton");
 
 // --- UI Navigation Functions ---
 window.hideAllScreens = function() {
+    console.log("Hiding all screens...");
     loginRegisterScreen.style.display = "none";
     gameMenuScreen.style.display = "none";
     gameOverScreen.style.display = "none";
@@ -47,6 +48,7 @@ window.hideAllScreens = function() {
 };
 
 window.showLoginRegisterScreen = function(message = "Please login or register to play.") {
+    console.log("Showing login/register screen with message:", message);
     window.hideAllScreens();
     loginRegisterScreen.style.display = "flex";
     authMessage.textContent = message;
@@ -55,25 +57,29 @@ window.showLoginRegisterScreen = function(message = "Please login or register to
 };
 
 window.showGameMenuScreen = function() {
+    console.log("Showing game menu screen.");
     window.hideAllScreens();
     gameMenuScreen.style.display = "flex";
     window.updateUI(); // Update coins and hearts displayed on menu
 };
 
 window.showShopScreen = function() {
+    console.log("Showing shop screen.");
     window.hideAllScreens();
     shopScreen.style.display = "flex";
     shopCoinsDisplay.textContent = window.gameState.totalCoins; // Update shop-specific coin display
 };
 
 window.showLeaderboardScreen = async function() {
+    console.log("Showing leaderboard screen.");
     window.hideAllScreens();
     leaderboardScreen.style.display = "flex";
-    document.getElementById("leaderboardList").innerHTML = '<li>Loading leaderboard...</li>';
+    document.getElementById("leaderboardList").innerHTML = '<li>Loading leaderboard...</li>'; // Show loading message
     await window.loadLeaderboard();
 };
 
 window.showGameUI = function() {
+    console.log("Showing game UI.");
     window.hideAllScreens();
     window.gameState.scoreDisplay.style.display = "block";
     window.gameState.coinsDisplay.style.display = "block";
@@ -87,59 +93,69 @@ window.showGameUI = function() {
 async function registerUser() {
     const email = emailInput.value;
     const password = passwordInput.value;
+    console.log("Attempting registration for email:", email);
     try {
         const userCredential = await window.auth.createUserWithEmailAndPassword(email, password);
-        const user = userCredential.user;
-        // Initialize user data in Firestore (handled by data-management.js onAuthStateChanged)
+        console.log("Firebase createUserWithEmailAndPassword successful. User UID:", userCredential.user.uid);
         authMessage.textContent = "Registration successful! Logging in...";
+        // Initial user data creation will be handled by onAuthStateChanged in data-management.js
     } catch (error) {
+        console.error("Registration error:", error); // Log the actual error
         authMessage.textContent = `Registration failed: ${error.message}`;
-        console.error("Registration error:", error);
     }
 }
 
 async function loginUser() {
     const email = emailInput.value;
     const password = passwordInput.value;
+    console.log("Attempting login for email:", email);
     try {
         await window.auth.signInWithEmailAndPassword(email, password);
+        console.log("Firebase signInWithEmailAndPassword successful.");
         authMessage.textContent = "Login successful!";
+        // onAuthStateChanged in data-management.js will handle screen transition
     } catch (error) {
+        console.error("Login error:", error); // Log the actual error
         authMessage.textContent = `Login failed: ${error.message}`;
-        console.error("Login error:", error);
     }
 }
 
 async function signInWithGoogle() {
+    console.log("Attempting Google Sign-In.");
     try {
         await window.auth.signInWithPopup(window.googleProvider);
-        // User data creation handled by data-management.js onAuthStateChanged
+        console.log("Google Sign-In successful.");
         authMessage.textContent = "Google Sign-In successful!";
+        // User data creation and screen transition handled by onAuthStateChanged
     } catch (error) {
+        console.error("Google Sign-In error:", error); // Log the actual error
         authMessage.textContent = `Google Sign-In failed: ${error.message}`;
-        console.error("Google Sign-In error:", error);
     }
 }
 
 async function signOutUser() {
+    console.log("Attempting to sign out user.");
     try {
         await window.auth.signOut();
+        console.log("Firebase signOut successful.");
         authMessage.textContent = "Logged out.";
-        // Reset local game state variables (handled by data-management.js onAuthStateChanged)
+        // Reset local game state variables
         window.gameState.totalCoins = 0;
         window.gameState.hearts = 1;
         window.gameState.maxHeight = 0;
         window.gameState.currentRoundCoins = 0;
         window.showLoginRegisterScreen("You have been logged out.");
     } catch (error) {
-        console.error("Logout error:", error);
+        console.error("Logout error:", error); // Log the actual error
         alert("Error logging out: " + error.message);
     }
 }
 
 // --- Game Flow UI Handlers ---
 window.startGame = function() {
+    console.log("startGame called.");
     if (!window.auth.currentUser) {
+        console.warn("Attempted to start game without being logged in.");
         window.showLoginRegisterScreen("Please login to start a game.");
         return;
     }
@@ -169,6 +185,7 @@ window.startGame = function() {
 };
 
 window.resumeGame = function() {
+    console.log("resumeGame called.");
     window.gameState.gameRunning = true;
     window.showGameUI();
     window.updateUI();
@@ -177,6 +194,7 @@ window.resumeGame = function() {
 };
 
 window.endGame = function() {
+    console.log("endGame called.");
     window.gameState.gameRunning = false;
 
     // Save state for potential revive (same height, same world)
@@ -216,7 +234,11 @@ window.endGame = function() {
 };
 
 window.reviveGame = function() {
-    if (!window.gameState.lastDeathState || window.gameState.currentRevivesUsed >= window.gameState.maxRevivesPerGame || window.gameState.hearts <= 0) return;
+    console.log("reviveGame called.");
+    if (!window.gameState.lastDeathState || window.gameState.currentRevivesUsed >= window.gameState.maxRevivesPerGame || window.gameState.hearts <= 0) {
+        console.warn("Revive conditions not met.");
+        return;
+    }
 
     // Consume heart and mark revive used
     window.gameState.hearts--;
@@ -240,6 +262,7 @@ window.reviveGame = function() {
 };
 
 window.buyHeart = function() {
+    console.log("buyHeart called.");
     const item = window.gameState.shopItems.heart;
     if (window.gameState.totalCoins >= item.cost) {
         window.gameState.totalCoins -= item.cost;
@@ -254,6 +277,7 @@ window.buyHeart = function() {
 };
 
 window.showGameMenuScreenAndTransferCoins = async function() {
+    console.log("showGameMenuScreenAndTransferCoins called.");
     // Only when leaving game to menu do we bank the run coins
     window.gameState.totalCoins += window.gameState.currentRoundCoins;
     window.gameState.currentRoundCoins = 0;
@@ -264,6 +288,7 @@ window.showGameMenuScreenAndTransferCoins = async function() {
 
 // --- Event Listeners ---
 document.addEventListener('DOMContentLoaded', () => {
+    console.log("DOM Content Loaded. Setting up event listeners.");
     // Auth Buttons
     loginButton.addEventListener('click', loginUser);
     registerButton.addEventListener('click', registerUser);
