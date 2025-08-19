@@ -1,96 +1,25 @@
 // js/game-logic.js
 
-// Initialize Game State with UI elements as null initially
-window.gameState = {
-    canvas: document.getElementById('gameCanvas'),
-    ctx: null, // Context will be set on DOMContentLoaded
-    player: {
-        x: 0, y: 0, dx: 0, dy: 0,
-        width: 40, height: 40,
-        bodyColor: '#36D96D', // Green for normal
-        eyeLeft: {x: 10, y: 10, radius: 5, pupilX: 12, pupilY: 12},
-        eyeRight: {x: 30, y: 10, radius: 5, pupilX: 28, pupilY: 12},
-        jumpPower: -10, // Initial jump power
-        maxSpeedX: 5,
-        gravity: 0.3,
-        squishT: 0, // Squish animation timer
-        maxSquish: 0.1 // Max squish amount
-    },
-    platforms: [],
-    platformHeight: 15,
-    minPlatformGap: 80,
-    maxPlatformGap: 150,
-    minPlatformWidth: 60,
-    maxPlatformWidth: 120,
-    worldOffsetY: 0, // How much the world has scrolled down
-    gameRunning: false,
-    inputLeft: false,
-    inputRight: false,
-    gooSplats: [],
-    splatDecayRate: 0.05,
-    splatShrinkRate: 0.5,
-    gameCoins: [],
-    coinRadius: 8,
-    coinValue: 1, // How many coins each collected coin is worth
+// The window.gameState object is already initialized in game-state.js.
+// We will assign its properties here within DOMContentLoaded.
 
-    // Game Stats / Player Data (will be loaded/saved from Firebase)
-    totalCoins: 0,
-    hearts: 1,
-    maxHeight: 0, // Max height achieved across all runs
-
-    // Current Round Stats
-    currentRoundCoins: 0,
-    currentRevivesUsed: 0,
-    maxRevivesPerGame: 1, // Only 1 revive per game session
-
-    // UI elements (initially null, assigned in DOMContentLoaded)
-    scoreDisplay: null,
-    coinsDisplay: null,
-    heartsDisplay: null,
-    chaosTimerDisplay: null,
-    chaosAlert: null,
-    leftZone: null,
-    rightZone: null,
-
-    // Firebase refs
-    currentUserDataRef: null,
-
-    // Shop Items
-    shopItems: {
-        heart: { cost: 50, name: "Heart" }
-    },
-
-    // Chaos Mode
-    chaosMode: 'normal',
-    chaosDuration: 10000, // 10 seconds
-    chaosInterval: 30000, // Every 30 seconds
-    lastChaosTime: 0,
-    gameTimeMs: 0, // Total milliseconds game has been running
-    chaosGravityMultiplier: 1.5,
-    chaosJumpPowerMultiplier: 0.7,
-    chaosPlayerSpeedMultiplier: 1.5,
-    spikePlatformChance: 0.1, // 10% chance for spike platforms
-    bouncyPlatformChance: 0.1, // 10% chance for bouncy platforms
-    gooSplatChance: 0.05, // 5% chance to leave a splat on jump
-    coinGenerationChance: 0.6 // 60% chance for a coin to spawn on a platform
-};
-
-// --- Initial Canvas and UI Setup ---
 document.addEventListener('DOMContentLoaded', () => {
     // Canvas setup
+    window.gameState.canvas = document.getElementById('gameCanvas');
     window.gameState.ctx = window.gameState.canvas.getContext('2d');
     window.gameState.canvas.width = 400; // Example width
-    window.gameState.canvas.height = 500; // Example height
+    window.gameState.canvas.height = 600; // Match HTML canvas height
     console.log("Canvas context initialized. Canvas dimensions:", window.gameState.canvas.width, "x", window.gameState.canvas.height);
 
     // Assign UI element references after DOM is ready
-    window.gameState.scoreDisplay = document.getElementById("scoreDisplay");
+    // CORRECTED IDs:
+    window.gameState.scoreDisplay = document.getElementById("score");
     window.gameState.coinsDisplay = document.getElementById("coinsDisplay");
     window.gameState.heartsDisplay = document.getElementById("heartsDisplay");
-    window.gameState.chaosTimerDisplay = document.getElementById("chaosTimerDisplay");
+    window.gameState.chaosTimerDisplay = document.getElementById("chaosTimer");
     window.gameState.chaosAlert = document.getElementById("chaosAlert");
-    window.gameState.leftZone = document.getElementById("leftTouchZone");
-    window.gameState.rightZone = document.getElementById("rightTouchZone");
+    window.gameState.leftZone = document.getElementById("leftZone"); // Corrected ID
+    window.gameState.rightZone = document.getElementById("rightZone"); // Corrected ID
 
     console.log("UI elements assigned to gameState.");
 });
@@ -125,14 +54,13 @@ window.updateGame = function(dt) {
     // Apply player horizontal movement
     window.gameState.player.x += window.gameState.player.dx;
 
-    // Player horizontal boundary collision
-    if (window.gameState.player.x < 0) {
-        window.gameState.player.x = 0;
-        window.gameState.player.dx = 0;
-    } else if (window.gameState.player.x + window.gameState.player.width > window.gameState.canvas.width) {
-        window.gameState.player.x = window.gameState.canvas.width - window.gameState.player.width;
-        window.gameState.player.dx = 0;
+    // Player horizontal boundary collision (wrap around)
+    if (window.gameState.player.x + window.gameState.player.width < 0) {
+        window.gameState.player.x = window.gameState.canvas.width;
+    } else if (window.gameState.player.x > window.gameState.canvas.width) {
+        window.gameState.player.x = -window.gameState.player.width;
     }
+
 
     // Apply gravity
     window.gameState.player.dy += window.gameState.player.gravity;
@@ -279,7 +207,7 @@ window.drawGame = function() {
                 window.gameState.ctx.fill();
             }
         }
-    }
+    });
 
     // Draw Coins
     window.gameState.gameCoins.forEach(c => {
@@ -355,7 +283,7 @@ window.createPlatforms = function() {
             type = 'bouncy';
         }
 
-        color = window.getPlatformColor(type);
+        color = window.getPlatformColor(type); // Use global getPlatformColor
 
         const newPlatform = {
             x: platformX,
@@ -431,9 +359,7 @@ window.generateNewPlatformsAndCoins = function(deltaY) {
 };
 
 // --- Helper Functions ---
-window.heightMeters = function() {
-    return Math.floor(Math.abs(window.gameState.worldOffsetY / 10)); // Convert pixels to meters (10px = 1m)
-};
+// window.heightMeters is now in game-state.js
 
 window.getCameraThreshold = function() {
     // Player should be snapped to this Y position as the camera scrolls
@@ -442,35 +368,43 @@ window.getCameraThreshold = function() {
 
 window.updateUI = function() {
     // Update Score/Height
-    if (window.gameState.scoreDisplay) { // Added check
+    if (window.gameState.scoreDisplay) {
         window.gameState.scoreDisplay.textContent = `Height: ${window.heightMeters()}m`;
     }
-    // Update Coins (current round + total)
-    if (window.gameState.coinsDisplay) { // Added check
+    // Update Coins (current round + total) - Format updated for consistency with original game-logic
+    if (window.gameState.coinsDisplay) {
         window.gameState.coinsDisplay.textContent = `Coins: ${window.gameState.currentRoundCoins} (+${window.gameState.totalCoins})`;
     }
     // Update Hearts
-    if (window.gameState.heartsDisplay) { // Added check
-        window.gameState.heartsDisplay.textContent = `Hearts: ${window.gameState.hearts}`;
+    if (window.gameState.heartsDisplay) {
+        window.gameState.heartsDisplay.textContent = `Hearts: ❤️ ${window.gameState.hearts}`; // Added heart emoji
     }
 
     // Update Chaos Timer (if active)
-    if (window.gameState.chaosTimerDisplay && window.gameState.chaosAlert) { // Added check
+    if (window.gameState.chaosTimerDisplay && window.gameState.chaosAlert && window.gameState.canvas) {
         if (window.gameState.chaosMode !== 'normal') {
             const timeRemaining = Math.max(0, window.gameState.chaosDuration - (window.gameState.gameTimeMs - window.gameState.lastChaosTime));
             window.gameState.chaosTimerDisplay.textContent = `Chaos: ${Math.ceil(timeRemaining / 1000)}s`;
             window.gameState.chaosTimerDisplay.style.color = 'red';
             window.gameState.chaosAlert.style.display = 'block';
-            window.gameState.chaosAlert.textContent = `Chaos Mode: ${window.gameState.chaosMode.toUpperCase()}!`;
+            window.gameState.chaosAlert.textContent = `${window.gameState.chaosMode.toUpperCase()}!`;
+            window.gameState.canvas.classList.add('chaos-flash'); // Apply visual effect
         } else {
-            window.gameState.chaosTimerDisplay.textContent = '';
+            const timeToNextChaos = Math.max(0, window.gameState.chaosInterval - (window.gameState.gameTimeMs - window.gameState.lastChaosTime));
+            window.gameState.chaosTimerDisplay.textContent = `Next Chaos: ${Math.ceil(timeToNextChaos / 1000)}s`;
             window.gameState.chaosTimerDisplay.style.color = '';
             window.gameState.chaosAlert.style.display = 'none';
+            window.gameState.canvas.classList.remove('chaos-flash'); // Remove visual effect
         }
     }
 
     // Update shop screen if visible
-    if (window.shopScreen && window.shopScreen.style.display === 'flex' && window.shopCoinsDisplay) { // Added checks
+    // These specific UI elements are declared in ui-handlers.js, not game-logic.js's gameState.
+    // So, rely on ui-handlers.js's global `shopScreen` and `shopCoinsDisplay` variables.
+    // It's safer to have ui-handlers.js explicitly call its own update for shop display.
+    // However, if `shopScreen` and `shopCoinsDisplay` are made global by ui-handlers.js
+    // and correctly assigned, this check would still work.
+    if (window.shopScreen && window.shopScreen.style.display === 'flex' && window.shopCoinsDisplay) {
         window.shopCoinsDisplay.textContent = window.gameState.totalCoins;
     }
 };
@@ -478,25 +412,33 @@ window.updateUI = function() {
 window.applyChaosMode = function(mode) {
     console.log("Applying Chaos Mode:", mode);
     window.gameState.chaosMode = mode;
-    window.gameState.player.bodyColor = '#36D96D'; // Reset to normal green
+    // Reset player colors
+    window.gameState.player.bodyColor = '#36D96D'; // Normal green
+    window.gameState.player.eyeLeft = {x: 10, y: 10, radius: 5, pupilX: 12, pupilY: 12};
+    window.gameState.player.eyeRight = {x: 30, y: 10, radius: 5, pupilX: 28, pupilY: 12};
+
 
     switch (mode) {
         case 'normal':
-            window.gameState.player.gravity = 0.3;
-            window.gameState.player.jumpPower = -10;
-            window.gameState.player.maxSpeedX = 5;
-            window.gameState.player.bodyColor = '#36D96D'; // Normal green
+            window.gameState.player.gravity = 0.3; // Base gravity
+            window.gameState.player.jumpPower = -10; // Base jump power
+            window.gameState.player.maxSpeedX = 5; // Base max speed
             break;
         case 'reverseGravity':
-            window.gameState.player.gravity = -0.3; // Negative gravity
-            window.gameState.player.jumpPower = 10; // Jump "down"
+            window.gameState.player.gravity = -0.3 * window.gameState.chaosGravityMultiplier; // Negative gravity
+            window.gameState.player.jumpPower = 10 * window.gameState.chaosJumpPowerMultiplier; // Jump "down" with adjusted power
             window.gameState.player.maxSpeedX = 5;
             window.gameState.player.bodyColor = '#800080'; // Purple
+            // Adjust eyes for reverse gravity
+            window.gameState.player.eyeLeft.y = window.gameState.player.height - 10;
+            window.gameState.player.eyeLeft.pupilY = window.gameState.player.height - 12;
+            window.gameState.player.eyeRight.y = window.gameState.player.height - 10;
+            window.gameState.player.eyeRight.pupilY = window.gameState.player.height - 12;
             break;
         case 'fastPlayer':
             window.gameState.player.gravity = 0.3;
             window.gameState.player.jumpPower = -10;
-            window.gameState.player.maxSpeedX = 8; // Faster horizontal speed
+            window.gameState.player.maxSpeedX = 5 * window.gameState.chaosPlayerSpeedMultiplier; // Faster horizontal speed
             window.gameState.player.bodyColor = '#00FFFF'; // Cyan
             break;
         // Add more chaos modes as needed
@@ -504,11 +446,4 @@ window.applyChaosMode = function(mode) {
     window.updateUI(); // Update UI to reflect changes
 };
 
-window.getPlatformColor = function(type) {
-    switch (type) {
-        case 'normal': return '#333333'; // Dark grey
-        case 'spike':  return '#8B0000'; // Dark red
-        case 'bouncy': return '#00BFFF'; // Deep sky blue
-        default:       return '#333333';
-    }
-};
+// window.getPlatformColor is now in game-state.js
