@@ -19,7 +19,7 @@ window.gameState = {
 
     // Game Control Flags
     gameRunning: false,
-    worldOffsetY: 0,
+    worldOffsetY: 0, // This is the camera's scroll position (world coordinates scrolled)
     gameTimeMs: 0,
     lastChaosTime: 0,
 
@@ -37,14 +37,14 @@ window.gameState = {
     platforms: [],
     gameCoins: [], // { x, y, collected }
     gooSplats: [],
-    splatDecayRate: 0.05, // Added splat rates from old game-logic
-    splatShrinkRate: 0.5, // Added splat rates from old game-logic
+    splatDecayRate: 0.05,
+    splatShrinkRate: 0.5,
 
     // Input State
     inputLeft: false,
     inputRight: false,
 
-    // CHAOS MODE CONFIGURATION (moved from old game-logic.js for centralization)
+    // CHAOS MODE CONFIGURATION
     chaosMode: 'normal', // Current active chaos mode
     chaosDuration: 10000, // 10 seconds a chaos mode lasts
     chaosInterval: 30000, // Every 30 seconds a new chaos mode triggers
@@ -63,12 +63,13 @@ window.gameState = {
 
     // Player Object
     player: {
-        x: 0, y: 0, // Initial positions will be set in startGame()
+        x: 0, y: 0, // World coordinates; initial positions set in startGame()
         dx: 0, dy: 0,
-        width: 40, height: 40, // Consistent dimensions
-        bodyColor: '#36D96D', // Green for normal
-        eyeLeft: {x: 10, y: 10, radius: 5, pupilX: 12, pupilY: 12},
-        eyeRight: {x: 30, y: 10, radius: 5, pupilX: 28, pupilY: 12},
+        width: 60, height: 60, // Reverted to original larger size
+        bodyColor: "#9D4EDD", // Purple color from reference image
+        // Eye positions adjusted for 60x60 player
+        eyeLeft: {x: 15, y: 15, radius: 5, pupilX: 18, pupilY: 17, color: "#FFD166", pupilColor: "black"}, // Yellow eye
+        eyeRight: {x: 45, y: 15, radius: 5, pupilX: 42, pupilY: 17, color: "#457B9D", pupilColor: "black"}, // Blue eye
         jumpPower: -10, // Base jump power
         maxSpeedX: 5, // Base max horizontal speed
         gravity: 0.3, // Base gravity
@@ -76,7 +77,7 @@ window.gameState = {
         maxSquish: 0.1 // Max squish amount
     },
 
-    // Platform Constants (moved from old game-logic.js)
+    // Platform Constants
     platformHeight: 15,
     minPlatformGap: 80,
     maxPlatformGap: 150,
@@ -93,7 +94,9 @@ window.gameState = {
 
 // Expose helper functions globally
 window.heightMeters = function() {
-    return Math.floor(Math.abs(window.gameState.worldOffsetY / 10)); // 10px = 1m
+    // Calculates height based on how much the world has scrolled (worldOffsetY)
+    // 10 pixels = 1 meter
+    return Math.floor(Math.abs(window.gameState.worldOffsetY / 10));
 };
 
 window.getPlatformColor = function(type) {
@@ -108,7 +111,7 @@ window.getPlatformColor = function(type) {
 // Define updateUI here so it's available early for data-management.js
 window.updateUI = function() {
     // Update Score/Height
-    // Check if the element exists before trying to access its properties
+    // Check if the element exists before trying to access its properties (important for early calls)
     if (window.gameState.scoreDisplay) {
         window.gameState.scoreDisplay.textContent = `Height: ${window.heightMeters()}m`;
     }
@@ -130,14 +133,14 @@ window.updateUI = function() {
             window.gameState.chaosTimerDisplay.style.color = 'red';
             window.gameState.chaosAlert.style.display = 'block';
             window.gameState.chaosAlert.textContent = `${window.gameState.chaosMode.toUpperCase()}!`;
-            // Apply visual effect to canvas
+            // Apply visual effect to canvas (if chaos mode is active)
             window.gameState.canvas.classList.add('chaos-flash');
         } else {
             const timeToNextChaos = Math.max(0, window.gameState.chaosInterval - (window.gameState.gameTimeMs - window.gameState.lastChaosTime));
             window.gameState.chaosTimerDisplay.textContent = `Next Chaos: ${Math.ceil(timeToNextChaos / 1000)}s`;
             window.gameState.chaosTimerDisplay.style.color = '';
             window.gameState.chaosAlert.style.display = 'none';
-            // Remove visual effect from canvas
+            // Remove visual effect from canvas (if returning to normal)
             window.gameState.canvas.classList.remove('chaos-flash');
         }
     }
