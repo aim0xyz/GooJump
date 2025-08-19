@@ -1,0 +1,239 @@
+/* style.css */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #0f2027;
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+  color: white;
+  text-align: center;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+canvas {
+  display: block;
+  margin: 0 auto;
+  background: rgba(0,0,0,0.3);
+  border: 2px solid #444;
+  transition: filter 0.3s ease;
+}
+canvas.chaos-flash { filter: hue-rotate(180deg) brightness(1.5); }
+
+#gameUI {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+}
+/* Clean top UI (no boxes) */
+#score, #coinsDisplay, #heartsDisplay, #chaosTimer {
+  position: absolute;
+  font-size: 20px; font-weight: bold;
+  padding: 10px;
+  border-radius: 5px;
+  display: none;
+  pointer-events: none;
+  background: none;
+}
+#score { top: 20px; left: 20px; }
+/* Coins above hearts (top-right) */
+#coinsDisplay {
+  top: 8px;
+  right: 20px;
+  text-align: right;
+  width: 120px;
+}
+#heartsDisplay {
+  top: 38px;
+  right: 20px;
+  text-align: right;
+  width: 120px;
+}
+#chaosTimer {
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+#chaosAlert {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 32px;
+  font-weight: bold;
+  color: #ff3333;
+  text-shadow: 2px 2px 4px black;
+  display: none;
+  z-index: 100;
+  pointer-events: none;
+}
+
+/* Overlays */
+#loginRegisterScreen, #gameMenuScreen, #gameOverScreen, #shopScreen, #leaderboardScreen {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  pointer-events: all;
+  font-size: 22px;
+  padding: 20px;
+}
+#gameMenuScreen, #gameOverScreen, #shopScreen, #leaderboardScreen { display: none; }
+
+h1 {
+  font-size: 36px;
+  margin: 20px 0;
+  color: lime;
+  text-shadow: 0 0 10px lime;
+}
+#gameOverScreen h1 {
+  color: #FF6347;
+  text-shadow: 0 0 10px #FF6347;
+}
+#shopScreen h1 {
+  color: #00BFFF;
+  text-shadow: 0 0 10px #00BFFF;
+}
+#leaderboardScreen h1 {
+  color: #FFD700;
+  text-shadow: 0 0 10px #FFD700;
+}
+p {
+  font-size: 18px;
+  margin: 10px 0;
+}
+
+/* Buttons */
+button {
+  margin-top: 15px;
+  padding: 15px 30px;
+  font-size: 20px;
+  border: none;
+  border-radius: 10px;
+  background: lime;
+  color: black;
+  font-weight: bold;
+  cursor: pointer;
+  pointer-events: all;
+  transition: all 0.1s ease;
+  max-width: 300px;
+  width: 100%;
+}
+button:active {
+  background: lightgreen;
+  transform: scale(0.95);
+}
+#shopButton { background: #00BFFF; }
+#shopButton:active { background: #009ACD; }
+#reviveButton { background: #FFD700; color: black; }
+#reviveButton:active { background: #DAA520; }
+#reviveButton:disabled { background: #666; cursor: not-allowed; }
+#gameOverMenuButton, .back-button, #logoutButton { background: #808080; }
+#gameOverMenuButton:active, .back-button:active, #logoutButton:active { background: #696969; }
+
+/* Login/Register Specific */
+#loginRegisterScreen form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 400px;
+  margin-bottom: 20px;
+}
+#loginRegisterScreen input {
+  padding: 10px;
+  font-size: 18px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  background: #333;
+  color: white;
+}
+#loginRegisterScreen button {
+  background: #4CAF50;
+}
+#loginRegisterScreen button:active {
+  background: #45a049;
+}
+#loginRegisterScreen #googleSignInButton {
+  background: #db4437; /* Google red */
+  color: white;
+}
+#loginRegisterScreen #googleSignInButton:active {
+  background: #c33d2e;
+}
+#authMessage {
+  color: #ffcc00;
+  font-size: 16px;
+  margin-top: 10px;
+}
+#welcomeMessage {
+  font-size: 24px;
+  margin-bottom: 20px;
+  color: #add8e6;
+}
+
+/* Shop item cleanup */
+.shop-item {
+  background: #333;
+  padding: 15px 25px;
+  margin: 10px 0;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 80%;
+  max-width: 380px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+.shop-item span { font-size: 18px; margin-right: 15px; white-space: nowrap; }
+.shop-item button {
+  margin: 0;
+  padding: 8px 15px;
+  font-size: 16px;
+  background: #32CD32;
+}
+.shop-item button:active { background: #228B22; }
+
+/* Leaderboard Specific */
+#leaderboardList {
+    list-style: none;
+    padding: 0;
+    width: 100%;
+    max-width: 400px;
+    margin-top: 20px;
+}
+#leaderboardList li {
+    background: #333;
+    margin-bottom: 8px;
+    padding: 12px 20px;
+    border-radius: 5px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 18px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+#leaderboardList li span:first-child {
+    font-weight: bold;
+    color: #ddd;
+}
+#leaderboardList li span:last-child {
+    color: #FFD700;
+    font-weight: bold;
+}
+
+/* Touch zones */
+#leftZone, #rightZone {
+  position: absolute;
+  top: 0;
+  width: 50%;
+  height: 100%;
+  background: transparent;
+  display: none;
+  pointer-events: all;
+}
+#leftZone { left: 0; }
+#rightZone { right: 0; }

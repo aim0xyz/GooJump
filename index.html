@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Time Bounce - CHAOS MODE</title>
+  <!-- Link to external CSS file -->
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <canvas id="gameCanvas" width="400" height="600"></canvas>
+  
+  <div id="gameUI">
+    <div id="score">Height: 0m</div>
+    <div id="coinsDisplay">Coins: 0</div>
+    <div id="heartsDisplay">Hearts: ❤️ 0</div>
+    <div id="chaosTimer">Next Chaos: 10s</div>
+    <div id="chaosAlert">GRAVITY FLIP!</div>
+    <div id="leftZone"></div>
+    <div id="rightZone"></div>
+
+    <!-- Login/Register Screen -->
+    <div id="loginRegisterScreen">
+        <h1>TIME BOUNCE</h1>
+        <p id="authMessage">Please login or register to play.</p>
+        <form id="authForm">
+            <input type="email" id="emailInput" placeholder="Email" required />
+            <input type="password" id="passwordInput" placeholder="Password" required />
+            <button type="submit" id="loginButton">Login</button>
+            <button type="button" id="registerButton">Register</button>
+            <button type="button" id="googleSignInButton">Sign in with Google</button>
+        </form>
+    </div>
+
+    <!-- Main Game Menu Screen -->
+    <div id="gameMenuScreen">
+      <h1 id="welcomeMessage">Welcome!</h1>
+      <p>🌪️ CHAOS MODE ENABLED 🌪️</p>
+      <p>World shifts every 10 seconds!</p>
+      <p>Climb as HIGH as possible!</p>
+      <p>💡 Go through walls to wrap around!</p>
+      <button id="startButton">START CLIMBING</button>
+      <button id="shopButton">SHOP</button>
+      <button id="leaderboardButton">LEADERBOARD</button>
+      <button id="logoutButton">LOGOUT</button>
+    </div>
+
+    <div id="gameOverScreen">
+      <h1>GAME OVER!</h1>
+      <p id="finalHeightDisplay">Max Height: 0m</p>
+      <p id="reviveMessage"></p>
+      <button id="reviveButton">REVIVE (1 HEART)</button>
+      <button id="gameOverMenuButton">MENU</button>
+    </div>
+
+    <div id="shopScreen">
+      <h1>SHOP</h1>
+      <p>Your Coins: <span id="shopCoinsDisplay">0</span></p>
+      <div class="shop-item">
+        <span>1 Heart (Revive)</span>
+        <span>Cost: 50 Coins</span>
+        <button id="buyHeartButton">BUY</button>
+      </div>
+      <button id="shopBackButton" class="back-button">BACK TO MENU</button>
+    </div>
+
+    <!-- Leaderboard Screen -->
+    <div id="leaderboardScreen">
+        <h1>LEADERBOARD</h1>
+        <p>Top Climbers</p>
+        <ul id="leaderboardList">
+            <!-- Leaderboard items will be inserted here by JavaScript -->
+        </ul>
+        <button id="leaderboardBackButton" class="back-button">BACK TO MENU</button>
+    </div>
+
+  </div>
+
+  <!-- Link to external JavaScript files (order matters!) -->
+  <script src="js/firebase-init.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/game-state.js"></script>
+  <script src="js/game-logic.js"></script>
+  <script src="js/data-management.js"></script>
+  <script src="js/ui-handlers.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
