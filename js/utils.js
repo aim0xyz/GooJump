@@ -1,6 +1,6 @@
 // js/utils.js
 
-// Color conversion utilities
+// Color conversion utilities (from inline script)
 window.hslShift = function(hex, hueShift, satDelta, lightDelta) {
     const {h, s, l} = hexToHsl(hex);
     let nh = (h + hueShift) % 360;
@@ -33,14 +33,24 @@ function hexToRgb(hex) {
     return m ? { r: parseInt(m[1],16), g: parseInt(m[2],16), b: parseInt(m[3],16) } : {r:0,g:0,b:0};
 }
 
-// Goo splat generation
+// Goo splat generation (from inline script, adapted to use window.gameState)
 window.spawnGooSplat = function(platform, dir) {
     const px = Math.max(platform.x, Math.min(window.gameState.player.x + window.gameState.player.width / 2, platform.x + platform.width));
     const y = dir < 0 ? platform.y : platform.y + platform.height;
     const baseColor = window.gameState.player.bodyColor;
     const life = 360;
     const width = Math.max(24, Math.min(window.gameState.player.width, platform.width * 0.8));
-    window.gameState.gooSplats.push({ x: px, y, dir, t: 0, life, color: baseColor, w: width, drops: makeDroplets(px, y, dir, baseColor) });
+    // Add goo splat to gameState.gooSplats (world coordinates)
+    window.gameState.gooSplats.push({
+        x: px,
+        y: y, // This is a world coordinate
+        dir: dir, // -1 for up, +1 for down
+        t: 0, // current time
+        life: life, // max life
+        color: baseColor,
+        w: width, // width
+        drops: makeDroplets(px, y, dir, baseColor)
+    });
 };
 
 function makeDroplets(x, y, dir, color) {

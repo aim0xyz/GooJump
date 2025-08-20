@@ -44,17 +44,34 @@ window.gameState = {
     inputLeft: false,
     inputRight: false,
 
-    // CHAOS MODE CONFIGURATION
+    // CHAOS MODE CONFIGURATION (updated to full list from inline script)
     chaosMode: 'normal', // Current active chaos mode
     chaosDuration: 10000, // 10 seconds a chaos mode lasts
-    chaosInterval: 30000, // Every 30 seconds a new chaos mode triggers
-    chaosGravityMultiplier: 1.5,
-    chaosJumpPowerMultiplier: 0.7,
-    chaosPlayerSpeedMultiplier: 1.5,
+    chaosInterval: 30000, // Every 30 seconds a new chaos mode triggers (from initial inline script)
+    chaosGravityMultiplier: 1.5, // Used for 'reverseGravity'
+    chaosJumpPowerMultiplier: 0.7, // Used for 'reverseGravity'
+    chaosPlayerSpeedMultiplier: 1.5, // Used for 'fastPlayer'
+
+    // Original inline script chaos multipliers/values. Keeping them aligned for now.
+    // NOTE: 'reverseGravity' here corresponds to 'gravity_flip' in the inline script's chaos modes
+    // 'fastPlayer' here corresponds to 'super_speed'
+    // 'slippery', 'tiny_platforms', 'bouncy', 'slow_motion' will use these base values or hardcoded values.
+
     spikePlatformChance: 0.1, // 10% chance for spike platforms
     bouncyPlatformChance: 0.1, // 10% chance for bouncy platforms
     gooSplatChance: 0.05, // 5% chance to leave a splat on jump
-    coinGenerationChance: 0.6, // 60% chance for a coin to spawn on a platform
+    coinGenerationChance: 0.6, // 60% chance for a coin to spawn on a platform (originally 0.2 in inline script)
+
+    chaosModes: [ // Full list of chaos modes
+        "normal",
+        "gravity_flip",
+        "reverse_controls",
+        "super_speed",
+        "slippery",
+        "tiny_platforms",
+        "bouncy",
+        "slow_motion"
+    ],
 
     // Shop Items
     shopItems: {
@@ -65,27 +82,39 @@ window.gameState = {
     player: {
         x: 0, y: 0, // World coordinates; initial positions set in startGame()
         dx: 0, dy: 0,
-        width: 60, height: 60, // Reverted to original larger size
+        width: 60, height: 60, // Reverted to original larger size from inline script
         bodyColor: "#9D4EDD", // Purple color from reference image
         // Eye positions adjusted for 60x60 player
         eyeLeft: {x: 15, y: 15, radius: 5, pupilX: 18, pupilY: 17, color: "#FFD166", pupilColor: "black"}, // Yellow eye
         eyeRight: {x: 45, y: 15, radius: 5, pupilX: 42, pupilY: 17, color: "#457B9D", pupilColor: "black"}, // Blue eye
-        jumpPower: -10, // Base jump power
-        maxSpeedX: 5, // Base max horizontal speed
-        gravity: 0.3, // Base gravity
+
+        // Base player stats from original inline script (for resetting in chaos modes)
+        baseSpeed: 0.9,
+        baseMaxSpeed: 6,
+        baseFriction: 0.86,
+        baseGravity: 0.42,
+        baseJumpPower: -10.5,
+
+        // Current player stats (will be modified by chaos modes)
+        speed: 0.9, // Current horizontal acceleration speed
+        maxSpeed: 6, // Current max horizontal speed
+        friction: 0.86, // Current friction
+        gravity: 0.42, // Current gravity
+        jumpPower: -10.5, // Current jump power
+
         squishT: 0, // Squish animation timer
         maxSquish: 0.1 // Max squish amount
     },
 
     // Platform Constants
-    platformHeight: 15,
-    minPlatformGap: 80,
-    maxPlatformGap: 150,
-    minPlatformWidth: 60,
-    maxPlatformWidth: 120,
+    platformHeight: 15, // From game-logic.js
+    minPlatformGap: 80, // From game-logic.js
+    maxPlatformGap: 150, // From game-logic.js
+    minPlatformWidth: 60, // From game-logic.js
+    maxPlatformWidth: 120, // From game-logic.js
 
     // Coin Constants
-    coinRadius: 8,
+    coinRadius: 8, // From game-logic.js (inline script used coinSize: 16 which is a diameter)
     coinValue: 1,
 
     // Firebase Data Reference
@@ -95,7 +124,7 @@ window.gameState = {
 // Expose helper functions globally
 window.heightMeters = function() {
     // Calculates height based on how much the world has scrolled (worldOffsetY)
-    // 10 pixels = 1 meter
+    // 10 pixels = 1 meter (consistent with game-logic.js previous usage)
     return Math.floor(Math.abs(window.gameState.worldOffsetY / 10));
 };
 
@@ -108,6 +137,11 @@ window.getPlatformColor = function(type) {
     }
 };
 
+window.getPlatformWidth = function() {
+    // Helper function from inline script, using window.gameState.chaosMode
+    return window.gameState.chaosMode === "tiny_platforms" ? 60 : 100;
+};
+
 // Define updateUI here so it's available early for data-management.js
 window.updateUI = function() {
     // Update Score/Height
@@ -115,9 +149,9 @@ window.updateUI = function() {
     if (window.gameState.scoreDisplay) {
         window.gameState.scoreDisplay.textContent = `Height: ${window.heightMeters()}m`;
     }
-    // Update Coins (current round + total)
+    // Update Coins (current round + total) - formatted for UI, coins icon from inline script
     if (window.gameState.coinsDisplay) {
-        window.gameState.coinsDisplay.textContent = `Coins: ${window.gameState.currentRoundCoins} (+${window.gameState.totalCoins})`;
+        window.gameState.coinsDisplay.textContent = `Coins: 🟡 ${window.gameState.currentRoundCoins}`;
     }
     // Update Hearts
     if (window.gameState.heartsDisplay) {
@@ -132,7 +166,7 @@ window.updateUI = function() {
             window.gameState.chaosTimerDisplay.textContent = `Chaos: ${Math.ceil(timeRemaining / 1000)}s`;
             window.gameState.chaosTimerDisplay.style.color = 'red';
             window.gameState.chaosAlert.style.display = 'block';
-            window.gameState.chaosAlert.textContent = `${window.gameState.chaosMode.toUpperCase()}!`;
+            window.gameState.chaosAlert.textContent = `${window.gameState.chaosMode.toUpperCase().replace(/_/g, ' ')}!`; // Format for display
             // Apply visual effect to canvas (if chaos mode is active)
             window.gameState.canvas.classList.add('chaos-flash');
         } else {
